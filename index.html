@@ -1,0 +1,3107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Annals</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+:root{
+  --parch:#E9DCC3; --parch2:#DFCFAF; --ink:#2B2320; --ink2:#4a3f36;
+  --gold:#C9A227; --red:#8a2f22; --edge:#b7a482;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:#101318;}
+body{font-family:'Segoe UI',system-ui,'Helvetica Neue',sans-serif;color:var(--ink);}
+#gl{position:absolute;inset:0;}
+canvas{display:block;}
+.serif{font-family:'IM Fell English',Georgia,'Times New Roman',serif;}
+
+/* ---------- loading ---------- */
+#loading{position:absolute;inset:0;background:radial-gradient(ellipse at center,#1d2430 0%,#0c0f14 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;color:var(--parch);
+  transition:opacity .8s;}
+#loading h1{font-family:'IM Fell English',Georgia,serif;font-size:42px;letter-spacing:2px;margin-bottom:14px;color:var(--gold);}
+#loadline{font-family:'IM Fell English',Georgia,serif;font-size:18px;font-style:italic;opacity:.85;min-height:26px;}
+#loadbar{width:280px;height:3px;background:#2b3242;margin-top:18px;border-radius:2px;overflow:hidden;}
+#loadbar>div{height:100%;width:0;background:var(--gold);transition:width .2s;}
+
+/* ---------- HUD top ---------- */
+#hud{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;
+  padding:6px 12px;z-index:20;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,16,12,.72),rgba(20,16,12,0));}
+#hud .chip{display:flex;align-items:center;gap:6px;color:var(--parch);font-size:13px;
+  text-shadow:0 1px 2px rgba(0,0,0,.8);white-space:nowrap;}
+#hud .chip b{color:var(--gold);font-weight:600;}
+#hud img.sig{width:18px;height:18px;border-radius:3px;border:1px solid rgba(233,220,195,.4);}
+#datechip{font-family:'IM Fell English',Georgia,serif;font-size:16px !important;}
+#timec{margin-left:auto;pointer-events:auto;display:flex;gap:4px;}
+#timec button{background:rgba(233,220,195,.12);border:1px solid rgba(233,220,195,.35);color:var(--parch);
+  min-width:34px;height:26px;border-radius:4px;cursor:pointer;font-size:12px;}
+#timec button.on{background:var(--gold);color:#241d10;border-color:var(--gold);font-weight:700;}
+#timec button:hover{border-color:var(--gold);}
+
+/* ---------- Chronicle ---------- */
+#chron{position:absolute;top:44px;right:10px;bottom:10px;width:340px;z-index:15;display:flex;flex-direction:column;
+  background:linear-gradient(160deg,var(--parch),var(--parch2));border:1px solid var(--edge);border-radius:6px;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);overflow:hidden;}
+#chron header{padding:8px 12px 4px;border-bottom:1px solid var(--edge);}
+#chron h2{font-family:'IM Fell English',Georgia,serif;font-size:19px;font-weight:normal;color:var(--ink);}
+#chronfilters{display:flex;gap:4px;padding:5px 10px;border-bottom:1px solid var(--edge);flex-wrap:wrap;}
+#chronfilters .f{font-size:11px;padding:2px 9px;border-radius:10px;border:1px solid var(--edge);cursor:pointer;color:var(--ink2);background:transparent;}
+#chronfilters .f.on{background:var(--ink);color:var(--parch);border-color:var(--ink);}
+#chronlist{flex:1;overflow-y:auto;padding:6px 10px;scrollbar-width:thin;}
+#chronlist::-webkit-scrollbar{width:6px}#chronlist::-webkit-scrollbar-thumb{background:var(--edge);border-radius:3px}
+.centry{font-family:'IM Fell English',Georgia,serif;font-size:14px;line-height:1.35;padding:5px 4px;cursor:pointer;
+  border-bottom:1px dotted rgba(74,63,54,.25);}
+.centry:hover{background:rgba(201,162,39,.15);}
+.centry .cd{color:var(--red);font-size:12px;font-style:italic;margin-right:4px;}
+.creign{font-family:'IM Fell English',Georgia,serif;text-align:center;font-size:15px;color:var(--red);
+  padding:10px 6px 6px;font-style:italic;}
+.creign:before,.creign:after{content:"❦";color:var(--gold);margin:0 8px;font-style:normal;}
+#chronfoot{display:flex;gap:6px;padding:6px 10px;border-top:1px solid var(--edge);}
+#chronfoot button{flex:1;font-size:11px;padding:4px;background:transparent;border:1px solid var(--edge);border-radius:4px;cursor:pointer;color:var(--ink2);}
+#chronfoot button:hover{border-color:var(--ink);color:var(--ink);}
+
+/* ---------- Drawer ---------- */
+#drawer{position:absolute;top:44px;left:10px;bottom:10px;width:270px;z-index:15;display:flex;flex-direction:column;
+  background:linear-gradient(160deg,var(--parch),var(--parch2));border:1px solid var(--edge);border-radius:6px;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);overflow:hidden;transition:transform .3s;}
+#drawer.closed{transform:translateX(-262px);}
+#drawertab{position:absolute;right:-1px;top:8px;width:0;}
+#drawertoggle{position:absolute;left:0;top:0;width:22px;height:44px;background:var(--parch);border:1px solid var(--edge);
+  border-left:none;border-radius:0 5px 5px 0;cursor:pointer;color:var(--ink2);font-size:12px;}
+#dtabs{display:flex;border-bottom:1px solid var(--edge);}
+#dtabs .t{flex:1;text-align:center;font-size:12px;padding:7px 0;cursor:pointer;color:var(--ink2);border-right:1px solid var(--edge);}
+#dtabs .t:last-child{border-right:none;}
+#dtabs .t.on{background:var(--ink);color:var(--parch);}
+#dbody{flex:1;overflow-y:auto;padding:10px;scrollbar-width:thin;}
+#dbody::-webkit-scrollbar{width:6px}#dbody::-webkit-scrollbar-thumb{background:var(--edge);border-radius:3px}
+.slrow{margin-bottom:9px;}
+.slrow label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink2);margin-bottom:2px;}
+.slrow label b{color:var(--ink);font-weight:600;}
+.slrow input[type=range]{width:100%;accent-color:var(--gold);height:16px;}
+.actbtn{display:block;width:100%;text-align:left;font-size:12.5px;padding:6px 9px;margin-bottom:5px;cursor:pointer;
+  background:rgba(43,35,32,.06);border:1px solid var(--edge);border-radius:4px;color:var(--ink);}
+.actbtn:hover{background:var(--gold);border-color:var(--gold);color:#241d10;}
+.actbtn .tg{float:right;color:var(--red);font-weight:700;}
+.ovbtn{display:block;width:100%;text-align:left;font-size:12.5px;padding:6px 9px;margin-bottom:5px;cursor:pointer;
+  background:transparent;border:1px solid var(--edge);border-radius:4px;color:var(--ink);}
+.ovbtn.on{background:var(--ink);color:var(--parch);border-color:var(--ink);}
+.wrow{margin-bottom:8px;font-size:12px;}
+.wrow input[type=text]{width:100%;padding:5px;border:1px solid var(--edge);border-radius:4px;background:rgba(255,255,255,.4);font-size:13px;color:var(--ink);}
+.wbtn{width:100%;font-size:12.5px;padding:6px;margin-bottom:5px;cursor:pointer;background:rgba(43,35,32,.06);
+  border:1px solid var(--edge);border-radius:4px;color:var(--ink);}
+.wbtn:hover{border-color:var(--ink);}
+.houserow{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:12px;}
+.houserow img{width:22px;height:22px;border-radius:3px;border:1px solid var(--edge);}
+.houserow .hbar{flex:1;height:5px;background:rgba(43,35,32,.15);border-radius:3px;overflow:hidden;}
+.houserow .hbar>div{height:100%;background:var(--gold);}
+.houserow.exiled .hname{text-decoration:line-through;opacity:.55;}
+.dhead{font-family:'IM Fell English',Georgia,serif;font-size:14px;color:var(--red);margin:8px 0 6px;border-bottom:1px solid var(--edge);padding-bottom:2px;}
+.succline{font-size:11.5px;color:var(--ink2);margin-bottom:3px;}
+
+/* ---------- Inspector ---------- */
+#insp{position:absolute;left:290px;bottom:14px;width:290px;z-index:16;display:none;
+  background:linear-gradient(160deg,var(--parch),var(--parch2));border:1px solid var(--edge);border-radius:6px;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);padding:10px 12px;}
+#insp h3{font-family:'IM Fell English',Georgia,serif;font-size:17px;font-weight:normal;display:flex;align-items:center;gap:8px;}
+#insp h3 img{width:22px;height:22px;border-radius:3px;border:1px solid var(--edge);}
+#insp .sub{font-size:11px;color:var(--red);font-style:italic;margin-bottom:6px;}
+#insp .row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--ink2);}
+#insp .row b{color:var(--ink);font-weight:600;}
+#insp .agline{font-family:'IM Fell English',Georgia,serif;font-style:italic;font-size:12.5px;margin-top:6px;color:var(--ink);}
+#inspx{position:absolute;top:6px;right:9px;cursor:pointer;color:var(--ink2);font-size:14px;background:none;border:none;}
+#inspfollow{margin-top:7px;width:100%;font-size:11.5px;padding:4px;cursor:pointer;background:transparent;border:1px solid var(--edge);border-radius:4px;color:var(--ink2);}
+#inspfollow:hover{border-color:var(--ink);color:var(--ink);}
+
+/* ---------- beat card ---------- */
+#beat{position:absolute;left:50%;bottom:36px;transform:translateX(-50%);max-width:620px;z-index:14;
+  background:rgba(20,16,12,.78);border:1px solid rgba(201,162,39,.5);border-radius:6px;padding:9px 20px;
+  color:var(--parch);text-align:center;display:none;pointer-events:none;}
+#beat .bt{font-family:'IM Fell English',Georgia,serif;font-size:17px;line-height:1.3;}
+#beat .bd{font-size:11px;color:var(--gold);font-style:italic;margin-top:2px;}
+
+/* watch-mode date */
+#watchdate{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:14;display:none;
+  font-family:'IM Fell English',Georgia,serif;font-size:20px;color:var(--parch);text-shadow:0 1px 3px #000;pointer-events:none;}
+
+#hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:13;font-size:11px;
+  color:rgba(233,220,195,.55);pointer-events:none;text-shadow:0 1px 2px #000;white-space:nowrap;}
+
+body.hideui #hud,body.hideui #chron,body.hideui #drawer,body.hideui #insp,body.hideui #hint{display:none !important;}
+body.watch #chron,body.watch #drawer,body.watch #insp,body.watch #hint,body.watch #hud{display:none !important;}
+body.watch #watchdate{display:block;}
+#placehint{position:absolute;top:50px;left:50%;transform:translateX(-50%);z-index:30;display:none;
+  background:var(--red);color:var(--parch);padding:5px 16px;border-radius:4px;font-size:13px;}
+</style>
+</head>
+<body>
+<div id="gl"></div>
+<div id="loading"><h1 id="loadtitle">ANNALS</h1><div id="loadline">Forging the realm…</div><div id="loadbar"><div></div></div></div>
+
+<div id="hud">
+  <span class="chip" id="datechip">—</span>
+  <span class="chip" id="wxchip">☀</span>
+  <span class="chip" id="crownchip"><img class="sig" id="crownsig" alt=""><b id="crownname">—</b></span>
+  <span class="chip">⛁ <b id="treasury">0</b></span>
+  <span class="chip">☺ <b id="realmpop">0</b></span>
+  <span class="chip" id="legitchip">♛ <b id="legit">0</b></span>
+  <div id="timec">
+    <button data-s="0" title="Pause (Space)">⏸</button><button data-s="1">▶</button><button data-s="2" class="on">▶▶</button><button data-s="3">▶▶▶</button><button data-s="4">▶▶▶▶</button>
+  </div>
+</div>
+<div id="watchdate">—</div>
+
+<div id="chron">
+  <header><h2 id="chrontitle">The Annals</h2></header>
+  <div id="chronfilters">
+    <button class="f on" data-f="all">All</button>
+    <button class="f" data-f="crown">Crown</button>
+    <button class="f" data-f="war">War</button>
+    <button class="f" data-f="trade">Trade</button>
+    <button class="f" data-f="fates">Fates</button>
+  </div>
+  <div id="chronlist"></div>
+  <div id="chronfoot">
+    <button id="btnexport">Export chronicle</button>
+    <button id="btnshare">Copy share link</button>
+  </div>
+</div>
+
+<div id="drawer">
+  <div id="dtabs">
+    <div class="t on" data-t="rates">Rates</div>
+    <div class="t" data-t="acts">Acts</div>
+    <div class="t" data-t="over">Overlays</div>
+    <div class="t" data-t="world">Realm</div>
+  </div>
+  <div id="dbody"></div>
+  <div id="drawertab"><button id="drawertoggle">◂</button></div>
+</div>
+
+<div id="insp">
+  <button id="inspx">✕</button>
+  <h3 id="insptitle">—</h3>
+  <div class="sub" id="inspsub"></div>
+  <div id="inspbody"></div>
+  <button id="inspfollow">Follow</button>
+</div>
+
+<div id="beat"><div class="bt" id="beattext"></div><div class="bd" id="beatdate"></div></div>
+<div id="placehint">Click the map to place — Esc to cancel</div>
+<div id="hint">drag orbit · right-drag pan · scroll zoom · click to inspect · Space pause · 1–4 speed · C watch · H hide UI</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =========================================================================
+   ANNALS — a living kingdom in a single file
+   Everything procedural. Seed in the URL hash is the whole save file.
+   ========================================================================= */
+'use strict';
+
+/* ---------------- RNG: sfc32, separate streams for gen & history -------- */
+function sfc32(a,b,c,d){return function(){a>>>=0;b>>>=0;c>>>=0;d>>>=0;let t=(a+b)|0;a=b^b>>>9;b=c+(c<<3)|0;c=(c<<21|c>>>11);d=d+1|0;t=t+d|0;c=c+t|0;return(t>>>0)/4294967296;};}
+function seedStreams(seed){
+  function mix(n){n=Math.imul(n^n>>>15,n|1);n^=n+Math.imul(n^n>>>7,n|61);return(n^n>>>14)>>>0;}
+  const s=seed>>>0;
+  return {
+    gen: sfc32(mix(s),mix(s+0x9e37),mix(s+0x85eb),mix(s+0xc2b2)),
+    sim: sfc32(mix(s+0x1b87),mix(s+0x27d4),mix(s+0x1656),mix(s+0x9c83))
+  };
+}
+let SEED=1234567, RS=null;
+const rand=(st)=>RS[st]();
+const randi=(st,n)=>Math.floor(RS[st]()*n);
+const pick=(st,arr)=>arr[Math.floor(RS[st]()*arr.length)];
+const chance=(st,p)=>RS[st]()<p;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const dist2d=(ax,az,bx,bz)=>Math.hypot(ax-bx,az-bz);
+
+/* ---------------- value noise + fBm ------------------------------------- */
+function makeNoise(seed){
+  const s=seed|0;
+  function h(x,y){let n=(x|0)*374761393+(y|0)*668265263+s*1013904223;n=Math.imul(n^(n>>>13),1274126177);n^=n>>>16;return(n>>>0)/4294967296;}
+  return function(x,y){
+    const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+    return h(xi,yi)*(1-u)*(1-v)+h(xi+1,yi)*u*(1-v)+h(xi,yi+1)*(1-u)*v+h(xi+1,yi+1)*u*v;
+  };
+}
+function fbm(n2,x,y,oct,lac,gain){
+  let a=.5,f=1,s=0,norm=0;
+  for(let i=0;i<oct;i++){s+=a*n2(x*f,y*f);norm+=a;a*=gain;f*=lac;}
+  return s/norm;
+}
+
+/* ---------------- constants --------------------------------------------- */
+const SIZE=6000, GRID=220, CELL=SIZE/GRID, SEA=0;
+const GOODS=['grain','fish','timber','ore','tools','cloth','wine'];
+const GOODBASE={grain:2,fish:2.5,timber:3,ore:5,tools:9,cloth:7,wine:8};
+const SEASONS=['Spring','Summer','Autumn','Winter'];
+const SEASONGLYPH=['❀','☀','⚘','❄'];
+const SPEEDS=[0,0.5,2,8,30];
+const B={WATER:0,MARSH:1,MEADOW:2,FARM:3,FOREST:4,PINE:5,ROCK:6,SNOW:7};
+
+/* archetype: [w,d,h, roofKind(0 gable,1 flat,2 spire), name] */
+const ARCH={
+  house:[7,8,4,0,'house'], longhouse:[14,7,4,0,'longhouse'], shop:[8,8,5,0,'shop'],
+  smithy:[9,8,4,0,'smithy'], mill:[9,9,7,0,'mill'], granary:[8,8,6,0,'granary'],
+  tavern:[11,10,6,0,'tavern'], temple:[12,18,9,2,'temple'], warehouse:[12,14,6,0,'warehouse'],
+  tower:[7,7,14,1,'watchtower'], wall:[12,3,7,1,'wall'], keep:[20,24,18,1,'keep']
+};
+const TIERNAME=['hovel-built','timber-framed','stone-built'];
+
+let W=null;               // the world
+let MOD=null;             // rate sliders (multipliers)
+
+/* ---------------- names & phonology ------------------------------------- */
+const NAMEB={
+  pfx:['Vael','Oster','Dun','Ald','Wester','Myr','Cael','Harren','Bel','Stane','Thorn','Elder','Ash','Fen','Grim','Hart','Rook','Sable','Wynd','Corve','Marle','Tarn','Bryn','Holm'],
+  sfx:['mere','holt','ford','caster','wyck','march','fell','combe','worth','bridge','haven','moor','dale','garth','stead','port','field','burn'],
+  maleN:['Aldric','Corwin','Edmund','Godfrey','Harlan','Osric','Roderic','Theobald','Wilfred','Baldric','Cedric','Dunstan','Emeric','Gareth','Leofric','Maynard','Oswin','Percival','Randolf','Sigmund','Tancred','Ulric','Waltheof','Berenger','Hamon','Ivo','Jocelin','Ranulf'],
+  femN:['Adela','Berthilde','Clemence','Edith','Gisela','Helewise','Isolde','Maelis','Oriel','Rosamund','Sybilla','Theodora','Winifred','Aveline','Brunhild','Cateline','Elfrida','Godiva','Hawise','Ida','Judith','Linota','Maud','Nesta','Petronilla','Sabine'],
+  epithets:['the Bold','the Just','the Cruel','the Pious','the Fat','the Wise','the Unready','the Fair','the Grim','the Gentle','the Old','the Younger'],
+  dragon:['Vermithrax','Scatha','Ancalor','Morghul','Fyrentar','Uldrath','Cindervane','Naghrast','Velkorag','Ashmaw']
+};
+function placeName(){ return pick('gen',NAMEB.pfx)+pick('gen',NAMEB.sfx); }
+function personName(sex){ return pick('gen',sex==='f'?NAMEB.femN:NAMEB.maleN); }
+const CHARGES=['stag','tower','wave','oak','wolf','comet','key','sun','crescent','crown','swords','fish','raven','rose','anchor','flame'];
+const HOUSEHUES=[[0x7a1f1f,0xe8d9a0],[0x1f3f6e,0xd8dee8],[0x24512a,0xe0d6b0],[0x5a3b6e,0xd9cfe0],[0x8a5a19,0xe8e0c8],[0x2b2320,0xc9a227]];
+
+/* ---------------- heraldry: procedural sigils to canvas ----------------- */
+function makeSigil(hue,charge){
+  const c=document.createElement('canvas');c.width=c.height=48;const g=c.getContext('2d');
+  const f='#'+hue[0].toString(16).padStart(6,'0'), m='#'+hue[1].toString(16).padStart(6,'0');
+  g.fillStyle=f;g.fillRect(0,0,48,48);
+  g.fillStyle='rgba(0,0,0,.18)';g.fillRect(0,24,48,24);
+  g.strokeStyle=m;g.fillStyle=m;g.lineWidth=3;g.lineCap='round';g.lineJoin='round';
+  const P=(pts,close)=>{g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);if(close)g.closePath();};
+  switch(charge){
+    case 'stag':P([[16,38],[16,22],[10,10],[16,18],[20,8],[24,16],[28,8],[32,18],[38,10],[32,22],[32,38]]);g.stroke();break;
+    case 'tower':P([[16,40],[16,16],[13,16],[13,10],[19,10],[19,14],[22,14],[22,10],[26,10],[26,14],[29,14],[29,10],[35,10],[35,16],[32,16],[32,40]],true);g.fill();break;
+    case 'wave':g.beginPath();for(let i=0;i<3;i++){g.moveTo(8,18+i*8);g.bezierCurveTo(18,12+i*8,30,24+i*8,40,18+i*8);}g.stroke();break;
+    case 'oak':g.beginPath();g.arc(24,18,10,0,7);g.fill();g.fillRect(21,24,6,16);break;
+    case 'wolf':P([[12,38],[18,20],[14,12],[22,18],[26,10],[30,18],[36,14],[32,24],[36,38]],true);g.fill();break;
+    case 'comet':g.beginPath();g.arc(32,14,6,0,7);g.fill();g.lineWidth=4;P([[28,18],[10,38]]);g.stroke();break;
+    case 'key':g.beginPath();g.arc(24,14,6,0,7);g.stroke();g.fillRect(22,20,4,18);g.fillRect(26,30,6,3);g.fillRect(26,35,8,3);break;
+    case 'sun':g.beginPath();g.arc(24,24,8,0,7);g.fill();for(let i=0;i<8;i++){const a=i*Math.PI/4;P([[24+Math.cos(a)*11,24+Math.sin(a)*11],[24+Math.cos(a)*17,24+Math.sin(a)*17]]);g.stroke();}break;
+    case 'crescent':g.beginPath();g.arc(24,24,11,0,7);g.fill();g.fillStyle=f;g.beginPath();g.arc(29,21,10,0,7);g.fill();break;
+    case 'crown':P([[12,34],[12,20],[18,26],[24,14],[30,26],[36,20],[36,34]],true);g.fill();break;
+    case 'swords':P([[12,10],[36,38]]);g.stroke();P([[36,10],[12,38]]);g.stroke();g.fillRect(20,32,8,4);break;
+    case 'fish':g.beginPath();g.ellipse(22,24,12,6,0,0,7);g.fill();P([[34,24],[42,17],[42,31]],true);g.fill();break;
+    case 'raven':P([[14,36],[20,22],[16,14],[26,18],[34,10],[30,22],[34,30],[24,28]],true);g.fill();break;
+    case 'rose':for(let i=0;i<5;i++){const a=i*Math.PI*2/5-Math.PI/2;g.beginPath();g.arc(24+Math.cos(a)*7,22+Math.sin(a)*7,5,0,7);g.fill();}g.fillStyle=f;g.beginPath();g.arc(24,22,3,0,7);g.fill();break;
+    case 'anchor':g.beginPath();g.arc(24,12,4,0,7);g.stroke();g.fillRect(22,16,4,18);g.beginPath();g.arc(24,30,10,0.3,Math.PI-0.3);g.stroke();break;
+    default:g.beginPath();g.moveTo(24,8);g.lineTo(30,26);g.lineTo(24,40);g.lineTo(18,26);g.closePath();g.fill();
+  }
+  return c;
+}
+
+/* =========================================================================
+   WORLD GENERATION — runs once per seed, deterministic from the gen stream
+   ========================================================================= */
+const cIdx=(cx,cz)=>cz*GRID+cx;
+const inB=(cx,cz)=>cx>=0&&cz>=0&&cx<GRID&&cz<GRID;
+const cellX=(cx)=>cx*CELL-SIZE/2;   // lattice-aligned with the terrain mesh vertices
+const cellZ=(cz)=>cz*CELL-SIZE/2;
+const toCell=(x)=>clamp(Math.round((x+SIZE/2)/CELL),0,GRID-1);
+
+function hAt(x,z){ // bilinear world-space height
+  const fx=clamp((x+SIZE/2)/CELL,0,GRID-1.001), fz=clamp((z+SIZE/2)/CELL,0,GRID-1.001);
+  const x0=Math.floor(fx),z0=Math.floor(fz),tx=fx-x0,tz=fz-z0;
+  const x1=Math.min(x0+1,GRID-1),z1=Math.min(z0+1,GRID-1),h=W.h;
+  return lerp(lerp(h[cIdx(x0,z0)],h[cIdx(x1,z0)],tx),lerp(h[cIdx(x0,z1)],h[cIdx(x1,z1)],tx),tz);
+}
+function slopeAt(cx,cz){
+  const h=W.h,c=h[cIdx(cx,cz)];let m=0;
+  for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]])if(inB(cx+dx,cz+dz))m=Math.max(m,Math.abs(h[cIdx(cx+dx,cz+dz)]-c));
+  return m/CELL;
+}
+
+async function generateWorld(seed,progress){
+  SEED=seed>>>0; RS=seedStreams(SEED);
+  const n1=makeNoise(SEED^0xA53), n2=makeNoise(SEED^0x5EED), n3=makeNoise(SEED^0xF00D), nMoist=makeNoise(SEED^0xB0A);
+  W={seed:SEED,h:new Float32Array(GRID*GRID),water:new Uint8Array(GRID*GRID),flow:new Float32Array(GRID*GRID),
+     biome:new Uint8Array(GRID*GRID),moist:new Float32Array(GRID*GRID),
+     settlements:[],roads:[],routes:{},houses:[],notables:[],armies:[],caravans:[],banditCamps:[],
+     riverPaths:[],bridges:[],treasury:2200,legitimacy:70,
+     clock:{day:0},weather:{state:'clear',t:0,wind:rand('gen')*Math.PI*2},snowpack:0,drought:false,flooding:0,
+     war:null,truceUntil:0,plagueActive:false,comet:null,eclipse:0,prophet:null,
+     dragon:null,monarch:null,reignStart:0,reignNum:{},name:placeName(),kingdomAdj:null,
+     stats:{battles:0,greatFires:0}};
+
+  await progress('Raising the bones of the earth…',0.05);
+  /* --- terrain: fBm + domain warp + mountain spine + optional coast ----- */
+  const spineA=rand('gen')*Math.PI, spineOff=(rand('gen')-0.5)*0.5;
+  const coastal=rand('gen')<0.42, coastEdge=randi('gen',4); // 0=N 1=E 2=S 3=W
+  const ca=Math.cos(spineA),sa=Math.sin(spineA);
+  for(let cz=0;cz<GRID;cz++)for(let cx=0;cx<GRID;cx++){
+    const u=cx/GRID-0.5,v=cz/GRID-0.5;
+    const wx=fbm(n3,u*3+9,v*3,3,2,.5)-.5, wz=fbm(n3,u*3,v*3+7,3,2,.5)-.5; // domain warp
+    let e=fbm(n1,(u+wx*.35)*4,(v+wz*.35)*4,5,2,.5);
+    e=Math.pow(e,1.35);
+    // mountain spine along a line through the map
+    const d=Math.abs((u*ca+v*sa)-spineOff);
+    const ridge=Math.exp(-d*d/(2*0.055*0.055))*(0.55+0.45*fbm(n2,u*7,v*7,4,2,.5));
+    e=e*0.55+ridge*0.6;
+    // gentle falloff at map rim so the world reads as an island of relevance
+    const rim=Math.max(Math.abs(u),Math.abs(v))*2;
+    e*=1-Math.pow(Math.max(0,rim-0.82)/0.18,2)*0.85;
+    let hgt=e*760-20;
+    if(coastal){
+      const t=[v+0.5,0.5-u,0.5-v,u+0.5][coastEdge]; // distance from coast edge 0..1
+      hgt-=Math.pow(Math.max(0,0.30-t)/0.30,1.6)*240;
+    }
+    W.h[cIdx(cx,cz)]=hgt;
+    W.moist[cIdx(cx,cz)]=fbm(nMoist,u*5+3,v*5+11,4,2,.5);
+  }
+  // normalize: ensure some land above sea
+  let maxh=-1e9;for(let i=0;i<W.h.length;i++)maxh=Math.max(maxh,W.h[i]);
+  if(maxh<400)for(let i=0;i<W.h.length;i++)W.h[i]*=400/maxh;
+
+  await progress('Carving the rivers…',0.2);
+  /* --- hydrology: flow accumulation, carve rivers ----------------------- */
+  const order=[];for(let i=0;i<GRID*GRID;i++)order.push(i);
+  order.sort((a,b)=>W.h[b]-W.h[a]);
+  const down=new Int32Array(GRID*GRID).fill(-1);
+  for(const i of order){
+    const cx=i%GRID,cz=(i/GRID)|0;let best=-1,bh=W.h[i];
+    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+      if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;
+      if(inB(nx,nz)&&W.h[cIdx(nx,nz)]<bh){bh=W.h[cIdx(nx,nz)];best=cIdx(nx,nz);}
+    }
+    down[i]=best;
+  }
+  for(let i=0;i<GRID*GRID;i++)W.flow[i]=1;
+  for(const i of order){if(down[i]>=0)W.flow[down[i]]+=W.flow[i];}
+  // mark sea
+  for(let i=0;i<GRID*GRID;i++)if(W.h[i]<=SEA)W.water[i]=1;
+  // major river: highest-accumulation land cell, trace to sea/edge; plus tributaries via threshold
+  const RIVT=140;
+  for(let i=0;i<GRID*GRID;i++)if(W.flow[i]>RIVT&&!W.water[i])W.water[i]=2;
+  // guarantee one major river: from best mountain source follow down
+  let srcBest=-1,srcScore=-1;
+  for(let i=0;i<GRID*GRID;i++){if(W.h[i]>250&&W.flow[i]>20&&W.flow[i]*W.h[i]>srcScore&&down[i]>=0){srcScore=W.flow[i]*W.h[i];srcBest=i;}}
+  if(srcBest>=0){let c=srcBest,guard=0;while(c>=0&&guard++<2000){if(!W.water[c])W.water[c]=2;if(W.h[c]<=SEA)break;c=down[c];}}
+  // carve river cells & record paths for rendering
+  const isRiv=(i)=>W.water[i]===2;
+  for(let i=0;i<GRID*GRID;i++)if(isRiv(i)){W.h[i]-=Math.min(7,2+W.flow[i]*0.004);}
+  // collect river polylines (from sources: river cells whose upstream has no river)
+  const hasUp=new Uint8Array(GRID*GRID);
+  for(let i=0;i<GRID*GRID;i++)if(isRiv(i)&&down[i]>=0&&isRiv(down[i]))hasUp[down[i]]=1;
+  for(let i=0;i<GRID*GRID;i++)if(isRiv(i)&&!hasUp[i]){
+    const path=[];let c=i,guard=0;
+    while(c>=0&&guard++<2500){path.push({x:cellX(c%GRID),z:cellZ((c/GRID)|0),w:Math.min(34,6+W.flow[c]*0.012),h:W.h[c]});if(!isRiv(c))break;c=down[c];}
+    if(path.length>4)W.riverPaths.push(path);
+  }
+  W.coastal=coastal;
+
+  await progress('Seeding meadow and forest…',0.35);
+  /* --- biomes ------------------------------------------------------------ */
+  for(let cz=0;cz<GRID;cz++)for(let cx=0;cx<GRID;cx++){
+    const i=cIdx(cx,cz),h=W.h[i],m=W.moist[i],sl=slopeAt(cx,cz);
+    if(W.water[i]===1){W.biome[i]=B.WATER;continue;}
+    if(W.water[i]===2){W.biome[i]=B.WATER;continue;}
+    let nearWater=false;
+    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(inB(cx+dx,cz+dz)&&W.water[cIdx(cx+dx,cz+dz)])nearWater=true;
+    if(h>560)W.biome[i]=B.SNOW;
+    else if(h>430||sl>0.55)W.biome[i]=B.ROCK;
+    else if(h>300&&m>0.35)W.biome[i]=B.PINE;
+    else if(h<12&&nearWater&&m>0.55)W.biome[i]=B.MARSH;
+    else if(m>0.58&&h<330)W.biome[i]=B.FOREST;
+    else if(sl<0.12&&h<180&&m>0.32)W.biome[i]=B.FARM;
+    else W.biome[i]=B.MEADOW;
+  }
+
+  await progress('Founding the settlements…',0.5);
+  /* --- settlement siting -------------------------------------------------- */
+  const score=(cx,cz)=>{
+    const i=cIdx(cx,cz);
+    if(W.water[i]||W.h[i]<3||W.h[i]>260)return -1;
+    let s=0,riv=false,sea=false,farm=0,forest=0;
+    for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++){
+      if(!inB(cx+dx,cz+dz))continue;const j=cIdx(cx+dx,cz+dz);
+      if(W.water[j]===2)riv=true;if(W.water[j]===1)sea=true;
+      if(W.biome[j]===B.FARM)farm++;if(W.biome[j]===B.FOREST||W.biome[j]===B.PINE)forest++;
+    }
+    s+=riv?30:0;s+=sea?26:0;s+=farm*1.2;s+=Math.min(forest,8)*0.5;
+    s-=slopeAt(cx,cz)*90;s-=W.h[i]*0.05;
+    // flat buildable area
+    let flat=0;for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)if(inB(cx+dx,cz+dz)&&slopeAt(cx+dx,cz+dz)<0.15&&!W.water[cIdx(cx+dx,cz+dz)])flat++;
+    s+=flat*0.9;
+    return s;
+  };
+  const cand=[];
+  for(let cz=4;cz<GRID-4;cz+=2)for(let cx=4;cx<GRID-4;cx+=2){const s=score(cx,cz);if(s>20)cand.push({cx,cz,s});}
+  cand.sort((a,b)=>b.s-a.s);
+  const nTowns=2+randi('gen',2), nVill=3+randi('gen',3);
+  const wanted=[{kind:'capital',pop:2200+randi('gen',700),minD:0},
+    ...Array.from({length:nTowns},()=>({kind:'town',pop:420+randi('gen',760),minD:850})),
+    ...Array.from({length:nVill},()=>({kind:'village',pop:70+randi('gen',220),minD:520}))];
+  for(const w of wanted){
+    let placed=false;
+    for(const c of cand){
+      const x=cellX(c.cx),z=cellZ(c.cz);
+      if(W.settlements.every(s=>dist2d(x,z,s.pos.x,s.pos.z)>Math.max(w.minD,520))){
+        const i=cIdx(c.cx,c.cz);
+        let sea=false,riv=false;
+        for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++)if(inB(c.cx+dx,c.cz+dz)){if(W.water[cIdx(c.cx+dx,c.cz+dz)]===1)sea=true;if(W.water[cIdx(c.cx+dx,c.cz+dz)]===2)riv=true;}
+        W.settlements.push({
+          name:placeName(),kind:w.kind,pos:{x,z,y:W.h[i]},cx:c.cx,cz:c.cz,pop:w.pop,
+          prosperity:50,unrest:8,walls:w.kind==='capital'?2:(w.kind==='town'&&chance('gen',0.5)?1:0),
+          stores:{grain:w.pop*0.5,fish:sea?w.pop*0.3:8,timber:40,ore:10,tools:15,cloth:10,wine:8},
+          harbor:sea,river:riv,owner:0,buildings:[],garrison:Math.round(w.pop*0.04),
+          infected:0,recovered:0,plagueDead:0,fires:[],ruinCount:0,pyres:false,
+          festivalUntil:0,siegeBy:null,revolted:false,growthClock:0,lastRaid:-999
+        });
+        placed=true;break;
+      }
+    }
+    if(!placed&&cand.length){const c=cand[randi('gen',Math.min(80,cand.length))];/* fallback ignore spacing */}
+  }
+  // ensure at least capital + 4 others exist
+  W.capital=W.settlements[0];
+
+  await progress('Laying the king’s roads…',0.62);
+  buildRoads();
+
+  await progress('Raising timber and stone…',0.75);
+  for(const s of W.settlements)layoutSettlement(s);
+
+  await progress('Blazoning the great houses…',0.88);
+  makeHousesAndCast();
+
+  /* dragon lair at highest peak */
+  let peak=0;for(let i=1;i<GRID*GRID;i++)if(W.h[i]>W.h[peak])peak=i;
+  W.dragon={name:pick('gen',NAMEB.dragon),lair:{x:cellX(peak%GRID),z:cellZ((peak/GRID)|0),y:W.h[peak]},
+    state:'sleeping',hoard:800,pos:null,path:null,target:null,mood:'slumbering',wakes:0};
+
+  await progress('Opening the annals…',0.97);
+}
+
+/* ---------------- roads: A* over slope/water cost field ------------------ */
+function buildRoads(){
+  const cost=(a,b)=>{ // between neighboring cells
+    const dh=Math.abs(W.h[a]-W.h[b])/CELL;
+    let c=1+dh*dh*46;
+    if(W.water[b]===1)return 1e9;
+    if(W.water[b]===2)c+=26; // bridge
+    const bi=W.biome[b];
+    if(bi===B.FOREST||bi===B.PINE)c+=2.2;
+    if(bi===B.MARSH)c+=6;if(bi===B.ROCK)c+=7;if(bi===B.SNOW)c+=14;
+    return c;
+  };
+  function astar(s,t){
+    const open=new Map(),g=new Map(),from=new Map();
+    const hx=(i)=>{const ax=i%GRID,az=(i/GRID)|0,bx=t%GRID,bz=(t/GRID)|0;return Math.hypot(ax-bx,az-bz);};
+    open.set(s,hx(s));g.set(s,0);
+    let guard=0;
+    while(open.size&&guard++<26000){
+      let cur=-1,cf=1e18;for(const[k,f]of open)if(f<cf){cf=f;cur=k;}
+      if(cur===t)break;
+      open.delete(cur);
+      const cx=cur%GRID,cz=(cur/GRID)|0,gc=g.get(cur);
+      for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;if(!inB(nx,nz))continue;
+        const ni=cIdx(nx,nz),step=cost(cur,ni)*(dx&&dz?1.414:1);
+        if(step>1e8)continue;
+        const ng=gc+step;
+        if(ng<(g.get(ni)??1e18)){g.set(ni,ng);from.set(ni,cur);open.set(ni,ng+hx(ni));}
+      }
+    }
+    if(!from.has(t)&&s!==t)return null;
+    const path=[];let c=t;while(c!==undefined&&c!==s){path.push(c);c=from.get(c);}path.push(s);path.reverse();
+    return path;
+  }
+  const connected=[0];
+  for(let i=1;i<W.settlements.length;i++){
+    // connect to nearest connected settlement
+    let bj=-1,bd=1e18;
+    for(const j of connected){const d=dist2d(W.settlements[i].pos.x,W.settlements[i].pos.z,W.settlements[j].pos.x,W.settlements[j].pos.z);if(d<bd){bd=d;bj=j;}}
+    const a=W.settlements[i],b=W.settlements[bj];
+    const cells=astar(cIdx(a.cx,a.cz),cIdx(b.cx,b.cz));
+    if(cells){
+      const path=cells.map(c=>({x:cellX(c%GRID),z:cellZ((c/GRID)|0)}));
+      let len=0;for(let k=1;k<path.length;k++)len+=dist2d(path[k-1].x,path[k-1].z,path[k].x,path[k].z);
+      for(const c of cells)if(W.water[c]===2)W.bridges.push({x:cellX(c%GRID),z:cellZ((c/GRID)|0)});
+      W.roads.push({a:i,b:bj,path,len});
+    }else W.roads.push({a:i,b:bj,path:[{x:a.pos.x,z:a.pos.z},{x:b.pos.x,z:b.pos.z}],len:bd});
+    connected.push(i);
+  }
+  // settlement-graph routing (BFS), route(a,b) => polyline
+  W.adj={};W.settlements.forEach((s,i)=>W.adj[i]=[]);
+  W.roads.forEach((r,ri)=>{W.adj[r.a].push({to:r.b,ri});W.adj[r.b].push({to:r.a,ri});});
+}
+function route(ai,bi){
+  const key=ai+'_'+bi;
+  if(W.routes[key])return W.routes[key];
+  // BFS
+  const prev={};const q=[ai];prev[ai]=null;
+  while(q.length){const c=q.shift();if(c===bi)break;for(const e of W.adj[c])if(!(e.to in prev)){prev[e.to]=c;q.push(e.to);}}
+  if(!(bi in prev))return null;
+  const hops=[];let c=bi;while(prev[c]!==null){hops.push([prev[c],c]);c=prev[c];}hops.reverse();
+  let poly=[];
+  for(const[f,t]of hops){
+    const r=W.roads.find(r=>(r.a===f&&r.b===t)||(r.a===t&&r.b===f));
+    let seg=r.path.slice();
+    if(r.a!==f)seg.reverse();
+    if(poly.length)seg=seg.slice(1);
+    poly=poly.concat(seg);
+  }
+  let len=0;for(let k=1;k<poly.length;k++)len+=dist2d(poly[k-1].x,poly[k-1].z,poly[k].x,poly[k].z);
+  const res={poly,len};W.routes[key]=res;
+  return res;
+}
+
+/* ---------------- settlement layout: streets, lots, buildings ------------ */
+function layoutSettlement(s){
+  const isCap=s.kind==='capital';
+  const count=isCap?Math.round(s.pop/4):s.kind==='town'?Math.round(s.pop/4.5):Math.round(s.pop/5);
+  const R=isCap?250:s.kind==='town'?170:80; // core radius
+  s.radius=R+40;
+  // street directions: road entries + radials
+  const dirs=[];
+  for(const r of W.roads)if(r.a===W.settlements.indexOf(s)||r.b===W.settlements.indexOf(s)){
+    const p=r.a===W.settlements.indexOf(s)?r.path[Math.min(3,r.path.length-1)]:r.path[Math.max(0,r.path.length-4)];
+    dirs.push(Math.atan2(p.z-s.pos.z,p.x-s.pos.x));
+  }
+  const nd=isCap?6:s.kind==='town'?5:3;
+  while(dirs.length<nd)dirs.push(rand('gen')*Math.PI*2);
+  const occ=[]; // occupied spots
+  const free=(x,z,rr)=>occ.every(o=>dist2d(x,z,o.x,o.z)>rr+o.r);
+  const buildable=(x,z)=>{const ci=toCell(x),cj=toCell(z);const i=cIdx(ci,cj);return !W.water[i]&&slopeAt(ci,cj)<0.35&&W.h[i]>1;};
+  function place(arch,tier,x,z,rot,district){
+    const a=ARCH[arch];
+    const b={arch,tier,x,z,rot,w:a[0]*(0.85+tier*0.15),d:a[1]*(0.85+tier*0.15),h:a[2]*(0.8+tier*0.25),
+      roof:a[3],district,state:'sound',s:s,y:hAt(x,z),burnT:0,rebuildT:0};
+    s.buildings.push(b);occ.push({x,z,r:Math.max(b.w,b.d)*0.62});
+    return b;
+  }
+  // keep on defensible high ground near capital
+  if(isCap){
+    let bx=s.pos.x,bz=s.pos.z,bh=-1;
+    for(let a=0;a<24;a++){const ang=a/24*Math.PI*2,x=s.pos.x+Math.cos(ang)*R*0.7,z=s.pos.z+Math.sin(ang)*R*0.7;
+      if(buildable(x,z)&&hAt(x,z)>bh){bh=hAt(x,z);bx=x;bz=z;}}
+    s.keepPos={x:bx,z:bz,y:hAt(bx,bz)};
+    place('keep',2,bx,bz,rand('gen')*Math.PI,'keep');
+  }
+  // temple & civic core
+  place(isCap||s.kind==='town'?'temple':'granary',isCap?2:1,s.pos.x+18,s.pos.z-16,rand('gen')*0.6,'temple');
+  place('tavern',isCap?2:1,s.pos.x-20,s.pos.z+14,rand('gen')*0.6,'market');
+  place('granary',1,s.pos.x+26,s.pos.z+22,rand('gen')*0.6,'market');
+  if(s.harbor||s.river)place('warehouse',1,s.pos.x-28,s.pos.z-24,rand('gen')*0.6,'market');
+  if(s.river){ // mill on the watercourse
+    let best=null,bd=1e9;
+    for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){
+      const ci=s.cx+dx,cj=s.cz+dz;if(!inB(ci,cj)||W.water[cIdx(ci,cj)]!==2)continue;
+      const d=dx*dx+dz*dz;if(d<bd){bd=d;best={x:cellX(ci)+CELL*0.8,z:cellZ(cj)};}
+    }
+    if(best&&buildable(best.x,best.z))s.mill=place('mill',1,best.x,best.z,rand('gen')*Math.PI,'artisan');
+  }
+  // organic growth along street rays
+  let tries=0;
+  while(s.buildings.length<count&&tries++<count*14){
+    const dir=pick('gen',dirs)+(rand('gen')-0.5)*0.55;
+    const t=Math.pow(rand('gen'),0.7)*R;
+    const side=(rand('gen')<0.5?-1:1)*(7+rand('gen')*10);
+    const x=s.pos.x+Math.cos(dir)*t-Math.sin(dir)*side;
+    const z=s.pos.z+Math.sin(dir)*t+Math.cos(dir)*side;
+    if(!buildable(x,z))continue;
+    const dc=t/R;
+    let district,arch;
+    if(dc<0.25){district='market';arch=pick('gen',['shop','shop','tavern','house','warehouse']);}
+    else if(dc<0.5){district='artisan';arch=pick('gen',['smithy','shop','house','house','longhouse']);}
+    else{district='residential';arch=pick('gen',['house','house','house','longhouse','granary']);}
+    let tier=dc<0.3?2:dc<0.65?1:0;
+    if(s.kind==='village')tier=Math.max(0,tier-1);
+    if(rand('gen')<0.2)tier=Math.max(0,tier-1);
+    if(!free(x,z,Math.max(ARCH[arch][0],ARCH[arch][1])*0.62))continue;
+    place(arch,tier,x,z,dir+(rand('gen')<0.5?0:Math.PI/2)+(rand('gen')-0.5)*0.2,district);
+  }
+  // walls: ring of segments around old core
+  if(s.walls>0){
+    const wr=isCap?R*0.78:R*0.9;const segs=Math.round(wr*2*Math.PI/13);
+    s.wallSegs=[];
+    for(let i=0;i<segs;i++){
+      const a=i/segs*Math.PI*2,x=s.pos.x+Math.cos(a)*wr,z=s.pos.z+Math.sin(a)*wr;
+      if(!buildable(x,z))continue;
+      const isGate=dirs.some(d=>Math.abs(((a-d+Math.PI*3)%(Math.PI*2))-Math.PI)>Math.PI-0.12);
+      if(isGate)continue;
+      s.wallSegs.push({x,z,rot:a+Math.PI/2,y:hAt(x,z)});
+      if(i%7===0)place('tower',s.walls,x,z,a,'keep');
+    }
+  }
+  s.capacity=()=>s.buildings.filter(b=>b.state==='sound').length*6+20;
+}
+
+/* ---------------- houses, dynasty & the cast ----------------------------- */
+let NID=1;
+function mkNotable(o){
+  const n=Object.assign({id:NID++,alive:true,spouse:null,heirs:[],grudges:[],epithet:'',
+    traits:[],agenda:'bides their time',role:'courtier',house:0,dead:false},o);
+  if(n.birthDay===undefined)n.birthDay=(W&&W.clock?W.clock.day:0)-(n.age||0)*360-(n.id*97)%360;
+  W.notables.push(n);return n;
+}
+const TRAITS=['bold','craven','just','cruel','shrewd','dull','pious','cynical','fertile','sickly','comely','stern','generous','grasping','patient','wrathful'];
+function twoTraits(){const a=pick('gen',TRAITS);let b=pick('gen',TRAITS);let g=0;while(b===a&&g++<9)b=pick('gen',TRAITS);return[a,b];}
+function makeHousesAndCast(){
+  // crown house (index 0) + 5 great houses seated at settlements 1..n
+  const beasts=['Stag','Wolf','Raven','Heron','Boar','Ox','Falcon','Adder'];
+  const crownCharge=pick('gen',['crown','sun','stag']);
+  W.houses.push({name:'House '+pick('gen',[W.name.replace(/(mere|holt|ford|caster|wyck|march|fell|combe|worth|bridge|haven|moor|dale|garth|stead|port|field|burn)$/,'')+pick('gen',NAMEB.sfx),pick('gen',beasts)+pick('gen',['guard','crest','hall'])]),
+    sigilHue:HOUSEHUES[5],charge:crownCharge,seat:0,loyalty:100,might:1,wealth:1,exiled:false,grudges:{},crown:true});
+  const seats=[];
+  for(let i=1;i<W.settlements.length&&seats.length<5;i++)seats.push(i);
+  while(seats.length<5)seats.push(randi('gen',Math.max(1,W.settlements.length-1))+1);
+  for(let hi=0;hi<5;hi++){
+    const seat=seats[hi]??0;
+    W.houses.push({name:'House '+(chance('gen',0.5)?pick('gen',NAMEB.pfx)+pick('gen',NAMEB.sfx):pick('gen',beasts)+pick('gen',['mane','fell','marck','wood','helm'])),
+      sigilHue:HOUSEHUES[hi],charge:pick('gen',CHARGES),seat,loyalty:52+randi('gen',30),might:0.6+rand('gen')*0.8,wealth:0.7+rand('gen')*0.6,exiled:false,grudges:{},crown:false});
+  }
+  // settlement ownership: nearest house seat (capital→crown)
+  W.settlements.forEach((s,si)=>{
+    if(si===0){s.owner=0;return;}
+    let bo=0,bd=1e18;
+    W.houses.forEach((h,hi)=>{if(hi===0)return;const hs=W.settlements[h.seat];if(!hs)return;
+      const d=dist2d(s.pos.x,s.pos.z,hs.pos.x,hs.pos.z);if(d<bd){bd=d;bo=hi;}});
+    s.owner=(si===W.houses[bo]?.seat||bd<1600)?bo:0;
+    if(W.houses[bo]&&si===W.houses[bo].seat)s.owner=bo;
+  });
+  // dynasty
+  const msex=chance('gen',0.5)?'m':'f';
+  const monarch=mkNotable({name:personName(msex),sex:msex,age:28+randi('gen',18),house:0,role:'monarch',traits:twoTraits(),agenda:'keeps the realm whole'});
+  const csex=msex==='m'?'f':'m';
+  const consort=mkNotable({name:personName(csex),sex:csex,age:24+randi('gen',16),house:1+randi('gen',5),role:'consort',traits:twoTraits(),agenda:'raises heirs for the crown'});
+  monarch.spouse=consort.id;consort.spouse=monarch.id;
+  const nk=randi('gen',4);
+  for(let i=0;i<nk;i++){
+    const ks=chance('gen',0.5)?'m':'f';
+    const kid=mkNotable({name:personName(ks),sex:ks,age:Math.max(1,randi('gen',Math.max(2,monarch.age-20))),house:0,role:'heir',traits:twoTraits(),agenda:'learns the ways of court'});
+    monarch.heirs.push(kid.id);
+  }
+  W.monarch=monarch;W.reignNum={};W.reignNum[monarch.name]=1;
+  // house families
+  for(let hi=1;hi<6;hi++){
+    const hsx=chance('gen',0.5)?'m':'f';
+    const head=mkNotable({name:personName(hsx),sex:hsx,age:30+randi('gen',25),house:hi,role:'head',traits:twoTraits(),agenda:pick('gen',['covets the crown','guards the marches','fills the coffers','nurses an old grudge','seeks a royal match'])});
+    const sp=mkNotable({name:personName(hsx==='m'?'f':'m'),sex:hsx==='m'?'f':'m',age:26+randi('gen',20),house:hi,role:'spouse',traits:twoTraits()});
+    head.spouse=sp.id;sp.spouse=head.id;
+    const kids=1+randi('gen',3);
+    for(let k=0;k<kids;k++){
+      const ks=chance('gen',0.5)?'m':'f';
+      const kid=mkNotable({name:personName(ks),sex:ks,age:Math.max(1,randi('gen',Math.max(2,head.age-18))),house:hi,role:'scion',traits:twoTraits(),agenda:'rides at the hunt'});
+      head.heirs.push(kid.id);
+    }
+    W.houses[hi].head=head.id;
+  }
+  // flavor roles
+  mkNotable({name:personName(chance('gen',0.5)?'m':'f'),sex:'m',age:50+randi('gen',20),house:0,role:'High Priest',traits:['pious',pick('gen',TRAITS)],agenda:'reads the omens'});
+  mkNotable({name:personName('m'),sex:'m',age:40+randi('gen',15),house:0,role:'Master of Coin',traits:['shrewd','grasping'],agenda:'counts the treasury twice'});
+  mkNotable({name:personName('m'),sex:'m',age:30+randi('gen',20),house:0,role:'Master Smith',traits:['stern','patient'],agenda:'forges blades of renown'});
+  // extended cousins to thicken the cast
+  for(let i=0;i<24;i++){
+    const sx=chance('gen',0.5)?'m':'f';
+    mkNotable({name:personName(sx),sex:sx,age:16+randi('gen',40),house:randi('gen',6),role:'cousin',traits:twoTraits(),agenda:pick('gen',['schemes quietly','tends the estates','drinks too deep','writes poor verse','collects falcons'])});
+  }
+}
+function notableById(id){return W.notables.find(n=>n.id===id);}
+function houseOf(n){return W.houses[n.house];}
+function fullTitle(n){
+  if(n.role==='monarch')return (n.sex==='f'?'Queen ':'King ')+n.name+(n.epithet?' '+n.epithet:'');
+  if(n.role==='head')return (n.sex==='f'?'Lady ':'Lord ')+n.name+' of '+houseOf(n).name.replace('House ','');
+  if(n.role==='heir')return (n.sex==='f'?'Princess ':'Prince ')+n.name;
+  return n.name+(n.epithet?' '+n.epithet:'');
+}
+/* =========================================================================
+   RENDERING — illuminated-manuscript low-poly, vertex colors, instancing
+   ========================================================================= */
+let scene,camera,renderer,G={};
+
+function mergeGeoms(list){ // list of [geometry, matrix] → one non-indexed BufferGeometry
+  let pos=[],norm=[];
+  const nm=new THREE.Matrix3();
+  for(const[g0,m]of list){
+    const g=g0.index?g0.toNonIndexed():g0;
+    nm.getNormalMatrix(m);
+    const p=g.attributes.position,n=g.attributes.normal,v=new THREE.Vector3();
+    for(let i=0;i<p.count;i++){
+      v.set(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(m);pos.push(v.x,v.y,v.z);
+      v.set(n.getX(i),n.getY(i),n.getZ(i)).applyNormalMatrix(m);norm.push(v.x,v.y,v.z);
+    }
+    if(g!==g0)g.dispose();
+  }
+  const out=new THREE.BufferGeometry();
+  out.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  out.setAttribute('normal',new THREE.Float32BufferAttribute(norm,3));
+  return out;
+}
+const M4=new THREE.Matrix4(),Q1=new THREE.Quaternion(),V1=new THREE.Vector3(),V2=new THREE.Vector3(),C1=new THREE.Color();
+function setInst(im,i,x,y,z,ry,sx,sy,sz){
+  Q1.setFromEuler(new THREE.Euler(0,ry||0,0));
+  M4.compose(V1.set(x,y,z),Q1,V2.set(sx||1,sy||1,sz||1));
+  im.setMatrixAt(i,M4);
+}
+
+/* ---------------- palettes ---------------------------------------------- */
+const PAL={
+  water:[0x2e5f7a,0x1d4257],
+  seasons:[ // [meadow, farm, forest, pine, rock, snowline, marsh] per season
+    {mead:0x6f9c4a,farm:0x7fa14e,forest:0x3e6e37,pine:0x2f5940,rock:0x8a8378,marsh:0x5d7a4d,sat:1},
+    {mead:0x93a04a,farm:0xa8a04b,forest:0x4a7038,pine:0x38603f,rock:0x8f867a,marsh:0x6d8148,sat:1},
+    {mead:0x9a8a44,farm:0x9d7f3c,forest:0x8a5e2a,pine:0x35583c,rock:0x877f74,marsh:0x6f6f42,sat:1},
+    {mead:0xb8b4a6,farm:0xb0aa98,forest:0x6b5e46,pine:0x2e4a38,rock:0x9a958c,marsh:0x8a8878,sat:1}
+  ],
+  tierWall:[0x9a8668,0xb59a6f,0xa8a094],
+  tierRoof:[0x8a7444,0x7d5636,0x5c626e],
+  road:0x9c8a63
+};
+
+function initGraphics(){
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  document.getElementById('gl').appendChild(renderer.domElement);
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,2,26000);
+  scene.fog=new THREE.Fog(0xbfd0dd,2600,14000);
+  // lights
+  G.sun=new THREE.DirectionalLight(0xfff2dc,1.15);
+  G.sun.castShadow=true;
+  G.sun.shadow.mapSize.set(2048,2048);
+  G.sun.shadow.camera.near=200;G.sun.shadow.camera.far=5200;
+  G.sun.shadow.bias=-0.0015;
+  scene.add(G.sun);scene.add(G.sun.target);
+  G.hemi=new THREE.HemisphereLight(0xbcd2e8,0x5b5140,0.55);scene.add(G.hemi);
+  G.amb=new THREE.AmbientLight(0x404a5a,0.25);scene.add(G.amb);
+  // sky dome
+  G.skyU={top:{value:new THREE.Color(0x87b3d8)},bot:{value:new THREE.Color(0xd8e2e8)},sunPos:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffe0b0)}};
+  const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:G.skyU,
+    vertexShader:'varying vec3 vp;void main(){vp=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'uniform vec3 top;uniform vec3 bot;uniform vec3 sunPos;uniform vec3 sunCol;varying vec3 vp;\n'+
+      'void main(){float h=normalize(vp).y*0.5+0.5;vec3 c=mix(bot,top,pow(h,0.7));\n'+
+      'float s=max(0.0,dot(normalize(vp),normalize(sunPos)));c+=sunCol*pow(s,220.0)*1.4;c+=sunCol*pow(s,10.0)*0.16;\n'+
+      'gl_FragColor=vec4(c,1.0);}'});
+  G.sky=new THREE.Mesh(new THREE.SphereGeometry(12500,24,14),skyMat);scene.add(G.sky);
+  // stars
+  {
+    const n=900,p=new Float32Array(n*3);
+    for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,e=Math.random()*Math.PI*0.5+0.03,r=11800;
+      p[i*3]=Math.cos(a)*Math.cos(e)*r;p[i*3+1]=Math.sin(e)*r;p[i*3+2]=Math.sin(a)*Math.cos(e)*r;}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
+    G.stars=new THREE.Points(g,new THREE.PointsMaterial({color:0xdfe8ff,size:14,transparent:true,opacity:0,fog:false,sizeAttenuation:true}));
+    scene.add(G.stars);
+  }
+  // sun & moon discs
+  G.sunDisc=new THREE.Mesh(new THREE.SphereGeometry(220,12,10),new THREE.MeshBasicMaterial({color:0xffe9c0,fog:false}));scene.add(G.sunDisc);
+  G.moonDisc=new THREE.Mesh(new THREE.SphereGeometry(150,12,10),new THREE.MeshBasicMaterial({color:0xd9e2f0,fog:false}));scene.add(G.moonDisc);
+  // torch pool (night point lights)
+  G.torches=[];
+  for(let i=0;i<8;i++){const pl=new THREE.PointLight(0xff9a3d,0,90,2);scene.add(pl);G.torches.push(pl);}
+  window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+}
+
+/* ---------------- terrain, water, roads ---------------------------------- */
+function colorForVertex(i,sp,snowT,seed){
+  const bio=W.biome[i],h=W.h[i];
+  const nn=Math.sin(i*127.1+(seed%97))*43758.5453; const n=nn-Math.floor(nn); // stable patternless jitter
+  let c;
+  switch(bio){
+    case B.WATER:c=C1.setHex(W.water[i]===1?0x2a5a78:0x37698a);break;
+    case B.MARSH:c=C1.setHex(sp.marsh);break;
+    case B.MEADOW:c=C1.setHex(sp.mead);break;
+    case B.FARM:c=C1.setHex(sp.farm);if(((i*7)%13)<3)c.multiplyScalar(0.9);break;
+    case B.FOREST:c=C1.setHex(sp.forest);break;
+    case B.PINE:c=C1.setHex(sp.pine);break;
+    case B.ROCK:c=C1.setHex(sp.rock);break;
+    default:c=C1.setHex(0xe8ecef);
+  }
+  c.multiplyScalar(0.88+n*0.24);
+  if(W.drought&&(bio===B.MEADOW||bio===B.FARM))c.lerp(new THREE.Color(0xb3a35c),0.55);
+  // winter snow accumulation on flat/high ground
+  if(snowT>0&&bio!==B.WATER){
+    const t=clamp(snowT*(h>380?1:h>120?0.75:0.55),0,1);
+    c.lerp(new THREE.Color(0xe9edf2),t);
+  }
+  return c;
+}
+function buildTerrain(){
+  const g=new THREE.PlaneGeometry(SIZE,SIZE,GRID-1,GRID-1);
+  g.rotateX(-Math.PI/2);
+  const p=g.attributes.position;
+  for(let i=0;i<p.count;i++)p.setY(i,W.h[i]);
+  g.computeVertexNormals();
+  const col=new Float32Array(p.count*3);
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  G.terrain=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));
+  G.terrain.receiveShadow=true;
+  scene.add(G.terrain);
+  updateTerrainColors(0,0);
+  // sea
+  if(W.coastal){
+    const sg=new THREE.PlaneGeometry(SIZE*2.4,SIZE*2.4,48,48);sg.rotateX(-Math.PI/2);
+    G.sea=new THREE.Mesh(sg,new THREE.MeshPhongMaterial({color:0x2e6285,transparent:true,opacity:0.92,shininess:90,specular:0x88aabb}));
+    G.sea.position.y=SEA+0.5;scene.add(G.sea);
+  }
+  // river ribbons
+  const quads=[];
+  for(const path of W.riverPaths){
+    for(let k=0;k<path.length-1;k++){
+      const a=path[k],b=path[k+1];
+      const dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1;
+      const px=-dz/L,pz=dx/L,wA=a.w/2,wB=b.w/2;
+      const ya=hAt(a.x,a.z)+1.2,yb=hAt(b.x,b.z)+1.2;
+      quads.push([a.x+px*wA,ya,a.z+pz*wA, a.x-px*wA,ya,a.z-pz*wA, b.x-px*wB,yb,b.z-pz*wB, b.x+px*wB,yb,b.z+pz*wB]);
+    }
+  }
+  const rp=[],rn=[];
+  for(const q of quads){
+    rp.push(q[0],q[1],q[2], q[3],q[4],q[5], q[6],q[7],q[8], q[0],q[1],q[2], q[6],q[7],q[8], q[9],q[10],q[11]);
+    for(let i=0;i<6;i++)rn.push(0,1,0);
+  }
+  const rg=new THREE.BufferGeometry();
+  rg.setAttribute('position',new THREE.Float32BufferAttribute(rp,3));
+  rg.setAttribute('normal',new THREE.Float32BufferAttribute(rn,3));
+  G.rivers=new THREE.Mesh(rg,new THREE.MeshPhongMaterial({color:0x3a7096,transparent:true,opacity:0.85,shininess:110,specular:0x99bbcc}));
+  scene.add(G.rivers);
+  // roads
+  const rq=[],rqn=[];
+  for(const r of W.roads){
+    for(let k=0;k<r.path.length-1;k++){
+      const a=r.path[k],b=r.path[k+1];
+      const dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1;
+      const px=-dz/L*3.2,pz=dx/L*3.2;
+      const ya=hAt(a.x,a.z)+0.6,yb=hAt(b.x,b.z)+0.6;
+      rq.push(a.x+px,ya,a.z+pz, a.x-px,ya,a.z-pz, b.x-px,yb,b.z-pz, a.x+px,ya,a.z+pz, b.x-px,yb,b.z-pz, b.x+px,yb,b.z+pz);
+      for(let i=0;i<6;i++)rqn.push(0,1,0);
+    }
+  }
+  const rrg=new THREE.BufferGeometry();
+  rrg.setAttribute('position',new THREE.Float32BufferAttribute(rq,3));
+  rrg.setAttribute('normal',new THREE.Float32BufferAttribute(rqn,3));
+  G.roads=new THREE.Mesh(rrg,new THREE.MeshLambertMaterial({color:PAL.road}));
+  scene.add(G.roads);
+  // bridges
+  const bg=new THREE.BoxGeometry(1,1,1);
+  G.bridges=new THREE.InstancedMesh(bg,new THREE.MeshLambertMaterial({color:0x7d6748}),Math.max(1,W.bridges.length));
+  W.bridges.forEach((b,i)=>setInst(G.bridges,i,b.x,hAt(b.x,b.z)+1.6,b.z,0,26,2.2,9));
+  G.bridges.instanceMatrix.needsUpdate=true;
+  scene.add(G.bridges);
+}
+let lastSeasonKey='';
+function updateTerrainColors(si,blend){
+  const sp0=PAL.seasons[si],sp1=PAL.seasons[(si+1)%4];
+  const snowT=si===3?0.85:(si===0?Math.max(0,0.5-blend*2)*0.8:0);
+  const key=si+'_'+(blend*8|0)+'_'+(W.drought?1:0);
+  if(key===lastSeasonKey)return;lastSeasonKey=key;
+  const sp={};for(const k of['mead','farm','forest','pine','rock','marsh']){
+    const c0=new THREE.Color(sp0[k]),c1=new THREE.Color(sp1[k]);sp[k]=c0.lerp(c1,blend*blend).getHex();
+  }
+  const col=G.terrain.geometry.attributes.color;
+  for(let i=0;i<col.count;i++){
+    const c=colorForVertex(i,sp,snowT,SEED);
+    col.setXYZ(i,c.r,c.g,c.b);
+  }
+  col.needsUpdate=true;
+  // trees seasonal tint
+  if(G.decid){
+    const dc=new THREE.Color([0x4c7a3c,0x557a36,0xa05e24,0x6e6250][si]);
+    G.decid.material.color.copy(dc);
+    G.pine.material.color.setHex(si===3?0x39543f:0x2e5138);
+  }
+}
+
+/* ---------------- trees --------------------------------------------------- */
+function buildTrees(){
+  const trunk=new THREE.CylinderGeometry(0.5,0.8,3.2,5);trunk.translate(0,1.6,0);
+  const blob=new THREE.IcosahedronGeometry(3.4,0);blob.translate(0,5.4,0);blob.scale(1,1.15,1);
+  const decidG=mergeGeoms([[trunk,new THREE.Matrix4()],[blob,new THREE.Matrix4()]]);
+  const cone=new THREE.ConeGeometry(2.6,7.5,6);cone.translate(0,5.2,0);
+  const pineG=mergeGeoms([[trunk,new THREE.Matrix4()],[cone,new THREE.Matrix4()]]);
+  const spots={dec:[],pine:[]};
+  const nj=makeNoise(SEED^0x77E);
+  for(let cz=0;cz<GRID;cz++)for(let cx=0;cx<GRID;cx++){
+    const i=cIdx(cx,cz),bio=W.biome[i];
+    if(bio!==B.FOREST&&bio!==B.PINE)continue;
+    if(W.settlements.some(s=>dist2d(cellX(cx),cellZ(cz),s.pos.x,s.pos.z)<s.radius*0.8))continue;
+    const dens=bio===B.FOREST?2:2;
+    for(let t=0;t<dens;t++){
+      const x=cellX(cx)+ (nj(cx*3+t*7,cz*3)-0.5)*CELL*1.4, z=cellZ(cz)+(nj(cx*3,cz*3+t*13)-0.5)*CELL*1.4;
+      const arr=bio===B.FOREST?spots.dec:spots.pine;
+      if(arr.length<5200)arr.push({x,z,s:0.8+nj(cx+t,cz-t)*0.9});
+    }
+  }
+  G.decid=new THREE.InstancedMesh(decidG,new THREE.MeshLambertMaterial({color:0x4c7a3c}),Math.max(1,spots.dec.length));
+  G.pine=new THREE.InstancedMesh(pineG,new THREE.MeshLambertMaterial({color:0x2e5138}),Math.max(1,spots.pine.length));
+  spots.dec.forEach((t,i)=>setInst(G.decid,i,t.x,hAt(t.x,t.z),t.z,t.x,t.s,t.s,t.s));
+  spots.pine.forEach((t,i)=>setInst(G.pine,i,t.x,hAt(t.x,t.z),t.z,t.x,t.s,t.s*1.1,t.s));
+  G.decid.instanceMatrix.needsUpdate=true;G.pine.instanceMatrix.needsUpdate=true;
+  G.decid.castShadow=G.pine.castShadow=true;
+  scene.add(G.decid);scene.add(G.pine);
+}
+
+/* ---------------- buildings ---------------------------------------------- */
+function gableGeom(){
+  // unit gable roof: footprint 1×1 at y0, ridge along x at y1 (outward winding)
+  const p=[
+    -0.5,0,-0.5, -0.5,1,0,  0.5,1,0,   -0.5,0,-0.5,  0.5,1,0,  0.5,0,-0.5, // front slope
+     0.5,0, 0.5,  0.5,1,0, -0.5,1,0,    0.5,0, 0.5, -0.5,1,0, -0.5,0, 0.5, // back slope
+    -0.5,0,-0.5, -0.5,0,0.5, -0.5,1,0,                                      // left cap
+     0.5,0, 0.5,  0.5,0,-0.5, 0.5,1,0 ];                                    // right cap
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  g.computeVertexNormals();
+  return g;
+}
+function buildBuildings(){
+  G.bldList=[];
+  for(const s of W.settlements)for(const b of s.buildings)G.bldList.push(b);
+  const N=G.bldList.length;
+  const body=new THREE.BoxGeometry(1,1,1);body.translate(0,0.5,0);
+  G.bodies=new THREE.InstancedMesh(body,new THREE.MeshLambertMaterial({}),Math.max(1,N+400));
+  const roofG=gableGeom();
+  G.roofs=new THREE.InstancedMesh(roofG,new THREE.MeshLambertMaterial({}),Math.max(1,N+400));
+  const spire=new THREE.ConeGeometry(0.5,1,6);spire.translate(0,0.5,0);
+  G.spires=new THREE.InstancedMesh(spire,new THREE.MeshLambertMaterial({color:0x5c626e}),64);
+  G.spireCount=0;
+  G.bodies.castShadow=G.roofs.castShadow=true;G.bodies.receiveShadow=true;
+  for(let i=0;i<G.bldList.length;i++){G.bldList[i].idx=i;updateBuildingInstance(G.bldList[i]);}
+  for(let i=N;i<N+400;i++){setInst(G.bodies,i,0,-500,0,0,0.01,0.01,0.01);setInst(G.roofs,i,0,-500,0,0,0.01,0.01,0.01);}
+  G.bodies.count=G.roofs.count=N+400;
+  G.bodies.instanceMatrix.needsUpdate=true;G.roofs.instanceMatrix.needsUpdate=true;
+  scene.add(G.bodies);scene.add(G.roofs);scene.add(G.spires);
+  // walls
+  const wallSegs=[];
+  for(const s of W.settlements)if(s.wallSegs)for(const w of s.wallSegs)wallSegs.push(w);
+  const wg=new THREE.BoxGeometry(1,1,1);wg.translate(0,0.5,0);
+  G.walls=new THREE.InstancedMesh(wg,new THREE.MeshLambertMaterial({color:0xa39a8c}),Math.max(1,wallSegs.length));
+  wallSegs.forEach((w,i)=>setInst(G.walls,i,w.x,w.y-1,w.z,w.rot,13.5,8,3));
+  G.walls.instanceMatrix.needsUpdate=true;G.walls.castShadow=true;
+  scene.add(G.walls);
+  // mill wheels
+  G.wheels=[];
+  for(const s of W.settlements)if(s.mill){
+    const wh=new THREE.Mesh(new THREE.CylinderGeometry(4,4,1,10),new THREE.MeshLambertMaterial({color:0x6e5636}));
+    wh.rotation.z=Math.PI/2;wh.position.set(s.mill.x+s.mill.w*0.7,s.mill.y+3,s.mill.z);
+    scene.add(wh);G.wheels.push(wh);
+  }
+}
+function updateBuildingInstance(b){
+  const i=b.idx;if(i===undefined)return;
+  let h=b.h,col,roofCol;
+  if(b.state==='burning'){col=0x4a3020;roofCol=0x30201a;}
+  else if(b.state==='ruin'||b.state==='rubble'){col=0x3a3430;roofCol=0x2c2824;h=b.h*0.35;}
+  else{col=PAL.tierWall[b.tier];roofCol=PAL.tierRoof[b.tier];
+    if(b.arch==='temple'){col=0xcfc7b4;}
+    if(b.arch==='keep'||b.arch==='tower'){col=0x9a948a;}}
+  setInst(G.bodies,i,b.x,b.y,b.z,b.rot,b.w,h,b.d);
+  G.bodies.setColorAt(i,C1.setHex(col));
+  const ruined=b.state==='ruin'||b.state==='rubble';
+  if(b.roof===0&&!ruined){
+    setInst(G.roofs,i,b.x,b.y+h,b.z,b.rot,b.w*1.18,h*0.62,b.d*1.18);
+  }else if(b.roof===2&&!ruined){
+    setInst(G.roofs,i,b.x,b.y+h,b.z,b.rot,b.w*1.1,h*0.9,b.d*1.1);
+  }else{
+    setInst(G.roofs,i,0,-500,0,0,0.01,0.01,0.01);
+  }
+  G.roofs.setColorAt(i,C1.setHex(roofCol));
+  G.bodies.instanceMatrix.needsUpdate=true;G.roofs.instanceMatrix.needsUpdate=true;
+  if(G.bodies.instanceColor)G.bodies.instanceColor.needsUpdate=true;
+  if(G.roofs.instanceColor)G.roofs.instanceColor.needsUpdate=true;
+}
+function addBuildingLive(s){ // growth: new building appears
+  const dirs=[rand('sim')*Math.PI*2,rand('sim')*Math.PI*2,rand('sim')*Math.PI*2];
+  for(let t=0;t<30;t++){
+    const dir=pick('sim',dirs),d=s.radius*0.4+rand('sim')*s.radius*0.75;
+    const x=s.pos.x+Math.cos(dir)*d,z=s.pos.z+Math.sin(dir)*d;
+    const ci=toCell(x),cj=toCell(z);
+    if(W.water[cIdx(ci,cj)]||slopeAt(ci,cj)>0.3)continue;
+    if(s.buildings.some(b=>dist2d(x,z,b.x,b.z)<11))continue;
+    const arch=pick('sim',['house','house','house','shop','longhouse']);
+    const a=ARCH[arch];
+    const b={arch,tier:chance('sim',0.3)?1:0,x,z,rot:dir,w:a[0],d:a[1],h:a[2],roof:a[3],
+      district:'residential',state:'sound',s,y:hAt(x,z),burnT:0,rebuildT:0,idx:G.bldList.length};
+    if(b.idx>=G.bodies.count)return null;
+    s.buildings.push(b);G.bldList.push(b);
+    updateBuildingInstance(b);
+    return b;
+  }
+  return null;
+}
+
+/* ---------------- labels & banners ---------------------------------------- */
+function makeTextSprite(text,size,color){
+  const c=document.createElement('canvas');const g=c.getContext('2d');
+  g.font='24px "IM Fell English",Georgia,serif';
+  const w=Math.ceil(g.measureText(text).width)+18;
+  c.width=w;c.height=38;
+  g.font='24px "IM Fell English",Georgia,serif';g.textBaseline='middle';
+  g.shadowColor='rgba(0,0,0,0.9)';g.shadowBlur=5;
+  g.fillStyle=color||'#f0e6cf';g.fillText(text,9,20);
+  const tex=new THREE.CanvasTexture(c);tex.minFilter=THREE.LinearFilter;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,fog:false}));
+  sp.scale.set(w*(size||1),38*(size||1),1);
+  sp.userData.w=w;sp.userData.h=38;
+  return sp;
+}
+function buildLabels(){
+  G.labels=[];
+  for(const s of W.settlements){
+    const sp=makeTextSprite(s.name,1.6);
+    sp.position.set(s.pos.x,s.pos.y+90,s.pos.z);
+    sp.userData.s=s;scene.add(sp);G.labels.push(sp);
+  }
+  // keep banner with crown sigil
+  G.banners=[];
+  const cap=W.capital;
+  if(cap&&cap.keepPos){
+    const tex=new THREE.CanvasTexture(makeSigil(W.houses[0].sigilHue,W.houses[0].charge));
+    const bn=new THREE.Mesh(new THREE.PlaneGeometry(8,10),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+    bn.position.set(cap.keepPos.x,cap.keepPos.y+26,cap.keepPos.z);
+    scene.add(bn);G.banners.push(bn);
+  }
+  // pick proxies for settlements
+  G.pickS=[];
+  for(const s of W.settlements){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(Math.max(40,s.radius*0.5),8,6),new THREE.MeshBasicMaterial({visible:false}));
+    m.position.set(s.pos.x,s.pos.y+18,s.pos.z);m.userData.pick={type:'settlement',s};
+    scene.add(m);G.pickS.push(m);
+  }
+}
+
+/* ---------------- agents: caravans, cogs, armies, dragon, bandits, citizens */
+function buildAgents(){
+  // caravans: instanced mule-train blobs
+  const cart=mergeGeoms([
+    [new THREE.BoxGeometry(3.4,1.6,1.8),new THREE.Matrix4().makeTranslation(0,1.4,0)],
+    [new THREE.BoxGeometry(1.6,1.2,1.2),new THREE.Matrix4().makeTranslation(2.6,1.1,0)],
+    [new THREE.BoxGeometry(1.2,1.4,1.0),new THREE.Matrix4().makeTranslation(-2.6,1.2,0)]
+  ]);
+  G.caravans=new THREE.InstancedMesh(cart,new THREE.MeshLambertMaterial({color:0x8a6a42}),48);
+  G.caravans.count=48;G.caravans.frustumCulled=false;scene.add(G.caravans);
+  // cogs
+  G.cogs=[];
+  for(let i=0;i<8;i++){
+    const grp=new THREE.Group();
+    const hull=new THREE.Mesh(new THREE.BoxGeometry(9,2.4,3.6),new THREE.MeshLambertMaterial({color:0x6e5233}));hull.position.y=1.4;
+    const sail=new THREE.Mesh(new THREE.PlaneGeometry(5,6),new THREE.MeshLambertMaterial({color:0xe4dcc4,side:THREE.DoubleSide}));sail.position.y=6;
+    grp.add(hull);grp.add(sail);grp.visible=false;scene.add(grp);G.cogs.push(grp);
+  }
+  // soldiers pool (shared by armies)
+  const sold=mergeGeoms([
+    [new THREE.BoxGeometry(0.9,1.9,0.6),new THREE.Matrix4().makeTranslation(0,0.95,0)],
+    [new THREE.SphereGeometry(0.34,5,4),new THREE.Matrix4().makeTranslation(0,2.1,0)]
+  ]);
+  G.soldiers=new THREE.InstancedMesh(sold,new THREE.MeshLambertMaterial({color:0x707a85}),900);
+  G.soldiers.frustumCulled=false;scene.add(G.soldiers);
+  // citizens (bubble band)
+  G.citizens=new THREE.InstancedMesh(sold,new THREE.MeshLambertMaterial({color:0x93815f}),80);
+  G.citizens.frustumCulled=false;scene.add(G.citizens);
+  G.citList=[];
+  // dragon
+  const dgrp=new THREE.Group();
+  const bodyM=new THREE.MeshLambertMaterial({color:0x5a1f24});
+  const dbody=new THREE.Mesh(new THREE.ConeGeometry(3,22,7),bodyM);dbody.rotation.x=Math.PI/2;
+  const wingG=new THREE.PlaneGeometry(16,7);
+  const wl=new THREE.Mesh(wingG,new THREE.MeshLambertMaterial({color:0x6e2a30,side:THREE.DoubleSide}));wl.position.x=-8.5;
+  const wr=new THREE.Mesh(wingG,new THREE.MeshLambertMaterial({color:0x6e2a30,side:THREE.DoubleSide}));wr.position.x=8.5;
+  const wlp=new THREE.Group();wlp.add(wl);const wrp=new THREE.Group();wrp.add(wr);
+  dgrp.add(dbody);dgrp.add(wlp);dgrp.add(wrp);
+  dgrp.visible=false;scene.add(dgrp);
+  G.dragonMesh=dgrp;G.dragonWings=[wlp,wrp];
+  dgrp.userData.pick={type:'dragon'};
+  // sheep near farms (ambient)
+  const sheepG=new THREE.BoxGeometry(1.6,1.1,1);sheepG.translate(0,0.9,0);
+  G.sheep=new THREE.InstancedMesh(sheepG,new THREE.MeshLambertMaterial({color:0xdcd6c8}),120);
+  let si=0;
+  for(const s of W.settlements){
+    for(let k=0;k<10&&si<120;k++){
+      const a=rand('gen')*Math.PI*2,d=s.radius+30+rand('gen')*140;
+      const x=s.pos.x+Math.cos(a)*d,z=s.pos.z+Math.sin(a)*d;
+      const ci=toCell(x),cj=toCell(z);
+      if(W.water[cIdx(ci,cj)]||W.biome[cIdx(ci,cj)]!==B.FARM&&W.biome[cIdx(ci,cj)]!==B.MEADOW)continue;
+      setInst(G.sheep,si++,x,hAt(x,z),z,rand('gen')*6,1,1,1);
+    }
+  }
+  for(let k=si;k<120;k++)setInst(G.sheep,k,0,-500,0,0,1,1,1);
+  G.sheep.instanceMatrix.needsUpdate=true;scene.add(G.sheep);
+  // birds
+  G.birds=[];const bgeo=new THREE.ConeGeometry(0.8,2.4,3);
+  for(let i=0;i<14;i++){
+    const b=new THREE.Mesh(bgeo,new THREE.MeshBasicMaterial({color:0x2b2a28}));
+    b.rotation.x=Math.PI/2;b.userData={a:rand('gen')*Math.PI*2,r:120+rand('gen')*200,h:80+rand('gen')*120,c:pick('gen',W.settlements).pos,sp:0.3+rand('gen')*0.4};
+    scene.add(b);G.birds.push(b);
+  }
+}
+
+/* ---------------- particles: smoke, fire, weather ------------------------- */
+function makePoints(n,size,color,opacity){
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  const m=new THREE.PointsMaterial({size,color,transparent:true,opacity,depthWrite:false,sizeAttenuation:true});
+  const p=new THREE.Points(g,m);p.frustumCulled=false;
+  return p;
+}
+function buildParticles(){
+  G.smoke=makePoints(400,7,0x9aa0a8,0.4);scene.add(G.smoke);G.smokeData=[];
+  for(let i=0;i<400;i++)G.smokeData.push({life:0,x:0,y:-999,z:0,vy:0});
+  G.flames=makePoints(300,9,0xff7a26,0.9);scene.add(G.flames);G.flameData=[];
+  for(let i=0;i<300;i++)G.flameData.push({life:0,x:0,y:-999,z:0});
+  G.rain=makePoints(1400,3.5,0x9db4c8,0.5);scene.add(G.rain);G.rain.visible=false;
+  G.rainData=new Float32Array(1400*3);
+  for(let i=0;i<1400;i++){G.rainData[i*3]=(Math.random()-0.5)*900;G.rainData[i*3+1]=Math.random()*500;G.rainData[i*3+2]=(Math.random()-0.5)*900;}
+  G.snow=makePoints(1000,4.5,0xf0f4f8,0.8);scene.add(G.snow);G.snow.visible=false;
+  // comet
+  G.comet=new THREE.Group();
+  const head=new THREE.Mesh(new THREE.SphereGeometry(60,10,8),new THREE.MeshBasicMaterial({color:0xe8f0ff,fog:false}));
+  const tail=new THREE.Mesh(new THREE.ConeGeometry(28,700,7),new THREE.MeshBasicMaterial({color:0xaFc4e8,transparent:true,opacity:0.5,fog:false}));
+  tail.position.z=370;tail.rotation.x=Math.PI/2;
+  G.comet.add(head);G.comet.add(tail);G.comet.visible=false;scene.add(G.comet);
+}
+
+/* ---------------- overlays ------------------------------------------------- */
+let overlayMode=null;
+function setOverlay(mode){
+  overlayMode=(overlayMode===mode)?null:mode;
+  if(G.overlay){scene.remove(G.overlay);G.overlay.traverse(o=>{if(o.geometry)o.geometry.dispose();});G.overlay=null;}
+  document.querySelectorAll('.ovbtn').forEach(b=>b.classList.toggle('on',b.dataset.o===overlayMode));
+  if(!overlayMode)return;
+  refreshOverlay();
+}
+function refreshOverlay(){
+  if(!overlayMode)return;
+  if(G.overlay){scene.remove(G.overlay);G.overlay.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+  const grp=new THREE.Group();
+  const disc=(s,color,op,rad)=>{
+    const m=new THREE.Mesh(new THREE.CircleGeometry(rad||s.radius*2.2,24),
+      new THREE.MeshBasicMaterial({color,transparent:true,opacity:op,depthWrite:false}));
+    m.rotation.x=-Math.PI/2;m.position.set(s.pos.x,s.pos.y+4+(s.radius*0.01),s.pos.z);
+    grp.add(m);
+  };
+  if(overlayMode==='territory'){
+    for(const s of W.settlements){
+      const h=W.houses[s.owner];
+      disc(s,h?h.sigilHue[0]:0x888888,0.32,s.kind==='capital'?800:s.kind==='town'?600:380);
+    }
+  }else if(overlayMode==='trade'){
+    for(const r of W.roads){
+      const pts=r.path.map(p=>new THREE.Vector3(p.x,hAt(p.x,p.z)+4,p.z));
+      const g=new THREE.BufferGeometry().setFromPoints(pts);
+      const vol=clamp((r.vol||0)/6,0.15,1);
+      grp.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0xC9A227,transparent:true,opacity:vol})));
+    }
+  }else if(overlayMode==='prosperity'){
+    for(const s of W.settlements)disc(s,new THREE.Color().setHSL(clamp(s.prosperity/100,0,1)*0.33,0.8,0.5).getHex(),0.4);
+  }else if(overlayMode==='plague'){
+    for(const s of W.settlements){const f=s.pop>0?s.infected/s.pop:0;disc(s,f>0.001?0x7a2090:0x2a6030,clamp(0.15+f*2.5,0.15,0.7));}
+  }else if(overlayMode==='unrest'){
+    for(const s of W.settlements)disc(s,new THREE.Color().setHSL((1-clamp(s.unrest/100,0,1))*0.33,0.85,0.45).getHex(),0.4);
+  }
+  G.overlay=grp;scene.add(grp);
+}
+
+/* ---------------- fires, camps, sieges, cairns ----------------------------- */
+function buildDynamic(){
+  G.campMeshes=new Map(); // banditCamp/siege -> group
+  G.cairns=[];
+}
+function campGroup(color){
+  const g=new THREE.Group();
+  for(let i=0;i<5;i++){
+    const t=new THREE.Mesh(new THREE.ConeGeometry(3,4.5,5),new THREE.MeshLambertMaterial({color}));
+    t.position.set(Math.cos(i*1.7)*9,2.2,Math.sin(i*1.7)*9);g.add(t);
+  }
+  return g;
+}
+function addCairn(x,z,text){
+  const c=new THREE.Mesh(new THREE.ConeGeometry(3,5,5),new THREE.MeshLambertMaterial({color:0x7d7870}));
+  c.position.set(x,hAt(x,z)+2,z);c.userData.pick={type:'cairn',text};
+  scene.add(c);G.cairns.push(c);
+}
+/* =========================================================================
+   CAMERA — one smoothed spring-damper rig; free / follow / director modes
+   ========================================================================= */
+const cam={
+  focus:new THREE.Vector3(0,0,0),yaw:0.8,dist:2600,pitchBias:0,
+  cur:{focus:new THREE.Vector3(0,0,0),yaw:0.8,dist:2600,pitchBias:0},
+  mode:'free',follow:null,manualUntil:0,shake:0
+};
+function pitchForDist(d){ // curved altitude path: high = map-like, low = street-like
+  const t=clamp((Math.log(d)-Math.log(8))/(Math.log(4000)-Math.log(8)),0,1);
+  return lerp(0.14,1.22,Math.pow(t,0.8));
+}
+function flyTo(x,z,d,yaw){
+  cam.focus.set(x,hAt(x,z),z);
+  if(d)cam.dist=clamp(d,6,4200);
+  if(yaw!==undefined)cam.yaw=yaw;
+  cam.follow=null;cam.mode=cam.mode==='director'?'director':'free';
+}
+function updateCamera(dt,now){
+  if(cam.follow){
+    const t=cam.follow;
+    if(t.gone||(t.alive===false)){cam.follow=null;}
+    else{
+      const p=agentPos(t);
+      if(p){cam.focus.set(p.x,p.y??hAt(p.x,p.z),p.z);if(cam.dist>900)cam.dist=300;}
+      else cam.follow=null;
+    }
+  }
+  const k=1-Math.exp(-dt*3.2);
+  cam.cur.focus.lerp(cam.focus,k);
+  let dy=cam.yaw-cam.cur.yaw;
+  while(dy>Math.PI)dy-=Math.PI*2;while(dy<-Math.PI)dy+=Math.PI*2;
+  cam.cur.yaw+=dy*k;
+  cam.cur.dist=lerp(cam.cur.dist,cam.dist,k);
+  cam.cur.pitchBias=lerp(cam.cur.pitchBias,cam.pitchBias,k);
+  const pitch=clamp(pitchForDist(cam.cur.dist)+cam.cur.pitchBias,0.08,1.45);
+  const d=cam.cur.dist;
+  const fx=cam.cur.focus.x,fz=cam.cur.focus.z;
+  const fy=Math.max(cam.cur.focus.y,hAt(fx,fz));
+  let px=fx+Math.cos(cam.cur.yaw)*Math.cos(pitch)*d;
+  let pz=fz+Math.sin(cam.cur.yaw)*Math.cos(pitch)*d;
+  let py=fy+Math.sin(pitch)*d;
+  const ground=hAt(px,pz)+5;
+  if(py<ground)py=ground;
+  if(cam.shake>0){
+    px+=(Math.random()-0.5)*cam.shake;py+=(Math.random()-0.5)*cam.shake;pz+=(Math.random()-0.5)*cam.shake;
+    cam.shake=Math.max(0,cam.shake-dt*22);
+  }
+  camera.position.set(px,py,pz);
+  camera.lookAt(fx,fy,fz);
+}
+function agentPos(t){
+  if(t.pos&&t.pos.x!==undefined&&!t.path)return {x:t.pos.x,y:(t.pos.y??hAt(t.pos.x,t.pos.z))+20,z:t.pos.z};
+  if(t._rpos)return t._rpos;
+  return null;
+}
+
+/* ---------------- input ---------------------------------------------------- */
+let placeMode=null, hoverPick=null;
+function markManual(){cam.manualUntil=perfNow()+30;if(cam.mode==='director')cam.mode='free';}
+function perfNow(){return performance.now()/1000;}
+function initInput(){
+  const el=renderer.domElement;
+  let drag=null;
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('pointerdown',e=>{
+    drag={x:e.clientX,y:e.clientY,b:e.button,moved:false,shift:e.shiftKey};
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+    if(!drag.moved)return;
+    markManual();
+    if(drag.b===0&&!drag.shift){ // orbit
+      cam.yaw+=dx*0.006;
+      cam.pitchBias=clamp(cam.pitchBias-dy*0.003,-0.6,0.5);
+    }else{ // pan
+      const sc=cam.cur.dist*0.0016;
+      const cy=Math.cos(cam.cur.yaw),sy=Math.sin(cam.cur.yaw);
+      cam.focus.x+=(dx*sy-dy*cy)*sc*-1;
+      cam.focus.z+=(-dx*cy-dy*sy)*sc*-1;
+      cam.focus.x=clamp(cam.focus.x,-SIZE*0.7,SIZE*0.7);
+      cam.focus.z=clamp(cam.focus.z,-SIZE*0.7,SIZE*0.7);
+      cam.focus.y=hAt(cam.focus.x,cam.focus.z);
+      cam.follow=null;
+    }
+    drag.x=e.clientX;drag.y=e.clientY;
+  });
+  el.addEventListener('pointerup',e=>{
+    if(drag&&!drag.moved&&e.button===0)onClick(e);
+    drag=null;
+  });
+  el.addEventListener('wheel',e=>{
+    e.preventDefault();markManual();
+    cam.dist=clamp(cam.dist*Math.exp(e.deltaY*0.0011),6,4200);
+  },{passive:false});
+  window.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT'&&e.target.type==='text')return;
+    switch(e.key){
+      case ' ':e.preventDefault();setSpeed(speedIdx===0?lastSpeed||2:0);break;
+      case '1':setSpeed(1);break;case '2':setSpeed(2);break;case '3':setSpeed(3);break;case '4':setSpeed(4);break;
+      case 'h':case 'H':document.body.classList.toggle('hideui');break;
+      case 'c':case 'C':toggleWatch();break;
+      case 'Escape':
+        if(placeMode)setPlaceMode(null);
+        else{hideInspect();cam.follow=null;}
+        break;
+    }
+  });
+}
+const raycaster=new THREE.Raycaster();
+function groundPoint(e){
+  const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
+  raycaster.setFromCamera(m,camera);
+  const hit=raycaster.intersectObject(G.terrain)[0];
+  return hit?hit.point:null;
+}
+function onClick(e){
+  if(placeMode){
+    const p=groundPoint(e);
+    if(p)doAct(placeMode,p);
+    setPlaceMode(null);
+    return;
+  }
+  const m=new THREE.Vector2((e.clientX/innerWidth)*2-1,-(e.clientY/innerHeight)*2+1);
+  raycaster.setFromCamera(m,camera);
+  const targets=[...G.pickS,G.dragonMesh,...G.cairns,...W.armies.filter(a=>a.flag).map(a=>a.flag),G.bodies];
+  for(const c of W.caravans)if(c.proxy)targets.push(c.proxy);
+  const hits=raycaster.intersectObjects(targets,true);
+  for(const h of hits){
+    let o=h.object,pk=null;
+    while(o&&!pk){pk=o.userData.pick;o=o.parent;}
+    if(h.object===G.bodies&&h.instanceId!==undefined&&h.instanceId<G.bldList.length)
+      pk={type:'building',b:G.bldList[h.instanceId]};
+    if(pk){showInspect(pk);return;}
+  }
+  hideInspect();
+  if(cam.follow){cam.follow=null;}
+}
+function setPlaceMode(mode){
+  placeMode=mode;
+  document.getElementById('placehint').style.display=mode?'block':'none';
+}
+
+/* ---------------- inspector ------------------------------------------------ */
+let inspTarget=null;
+function esc(t){const d=document.createElement('span');d.textContent=t;return d.innerHTML;}
+function showInspect(pk){
+  inspTarget=pk;
+  const el=document.getElementById('insp'),body=document.getElementById('inspbody');
+  const title=document.getElementById('insptitle'),sub=document.getElementById('inspsub');
+  const fb=document.getElementById('inspfollow');fb.style.display='none';
+  let h='';
+  const row=(k,v)=>`<div class="row"><span>${k}</span><b>${v}</b></div>`;
+  if(pk.type==='settlement'){
+    const s=pk.s,house=W.houses[s.owner];
+    title.innerHTML=`<img src="${sigURL(s.owner)}">`+esc(s.name);
+    sub.textContent=s.kind+(s.harbor?' · harbor':'')+(s.river?' · riverside':'')+' · '+house.name;
+    h+=row('Population',Math.round(s.pop).toLocaleString());
+    h+=row('Prosperity',Math.round(s.prosperity));
+    h+=row('Unrest',Math.round(s.unrest));
+    h+=row('Food stores',Math.round(s.stores.grain+s.stores.fish));
+    h+=row('Walls',['none','palisade','stone'][s.walls]||'stone');
+    h+=row('Garrison',s.garrison);
+    if(s.infected>0.5)h+=row('Plague',Math.round(s.infected)+' sick, '+Math.round(s.plagueDead)+' dead');
+    if(s.siegeBy)h+=row('Under siege by',s.siegeBy.houseName);
+    if(s.ruinCount)h+=row('Ruins',s.ruinCount);
+    flyToBtn(fb,'Visit',()=>flyTo(s.pos.x,s.pos.z,s.kind==='capital'?520:340));
+  }else if(pk.type==='building'){
+    const b=pk.b;
+    title.textContent=(TIERNAME[b.tier]||'')+' '+ARCH[b.arch][4];
+    sub.textContent=b.s.name+' · '+b.district+' district'+(b.state!=='sound'?' · '+b.state:'');
+    h+=row('Households',b.arch==='house'||b.arch==='longhouse'?1+b.tier:0);
+    h+=row('State',b.state);
+    if(b.arch==='granary')h+=row('Grain stored',Math.round(b.s.stores.grain));
+    if(b.arch==='warehouse')h+=row('Goods stored',Math.round(GOODS.reduce((t,g)=>t+b.s.stores[g],0)));
+    flyToBtn(fb,'Visit',()=>flyTo(b.x,b.z,60));
+  }else if(pk.type==='notable'){
+    const n=pk.n;
+    title.innerHTML=`<img src="${sigURL(n.house)}">`+esc(fullTitle(n));
+    sub.textContent=n.role+' · '+houseOf(n).name+(n.alive?'':' · deceased');
+    h+=row('Age',n.age);
+    h+=row('Traits',n.traits.join(', '));
+    if(n.spouse){const sp=notableById(n.spouse);if(sp)h+=row('Spouse',sp.name);}
+    if(n.heirs.length)h+=row('Children',n.heirs.map(id=>notableById(id)?.name).filter(Boolean).join(', '));
+    h+=`<div class="agline">“${esc(n.agenda)}.”</div>`;
+  }else if(pk.type==='army'){
+    const a=pk.a||pk.army;
+    title.innerHTML=`<img src="${sigURL(a.house)}">`+esc(a.name);
+    sub.textContent='army of '+W.houses[a.house].name;
+    h+=row('Strength',Math.round(a.strength));
+    h+=row('Morale',Math.round(a.morale));
+    h+=row('Supply',Math.round(a.supply));
+    const c=notableById(a.commander);
+    if(c)h+=row('Commander',fullTitle(c));
+    flyToBtn(fb,'Follow',()=>{cam.follow=a;cam.dist=260;});
+  }else if(pk.type==='caravan'){
+    const c=pk.c;
+    title.textContent='Caravan';
+    sub.textContent=W.settlements[c.origin].name+' → '+W.settlements[c.dest].name;
+    h+=row('Cargo',c.good+' × '+Math.round(c.qty));
+    h+=row('Value',Math.round(c.value)+' gold');
+    flyToBtn(fb,'Follow',()=>{cam.follow=c;cam.dist=140;});
+  }else if(pk.type==='dragon'){
+    const d=W.dragon;
+    title.textContent=d.name;
+    sub.textContent='the dragon of the high peak';
+    h+=row('Mood',d.mood);
+    h+=row('Hoard',Math.round(d.hoard)+' gold');
+    h+=row('Raids',d.wakes);
+    flyToBtn(fb,'Follow',()=>{cam.follow=d;cam.dist=300;});
+  }else if(pk.type==='cairn'){
+    title.textContent='Battle cairn';
+    sub.textContent='';
+    h+=`<div class="agline">${esc(pk.text)}</div>`;
+  }else if(pk.type==='camp'){
+    title.textContent=pk.camp.king?('Camp of '+pk.camp.king):'Bandit camp';
+    sub.textContent='outlaws of the greenwood';
+    h+=row('Raids',pk.camp.raids);
+  }
+  body.innerHTML=h;
+  el.style.display='block';
+}
+function flyToBtn(fb,label,fn){fb.style.display='block';fb.textContent=label;fb.onclick=fn;}
+function hideInspect(){document.getElementById('insp').style.display='none';inspTarget=null;}
+function sigURL(hi){
+  const h=W.houses[hi]||W.houses[0];
+  if(!h._url)h._url=makeSigil(h.sigilHue,h.charge).toDataURL();
+  return h._url;
+}
+/* =========================================================================
+   SIMULATION — one tick = one sim-day. Weather → Economy → Population →
+   Politics → Military → Threats → Growth → Chronicle flush.
+   Every positive feedback loop ships with a predator.
+   ========================================================================= */
+MOD={harvest:1,birth:1,mort:1,trade:1,tax:12,vir:1,leth:1,disaster:1,bandit:1,aggr:1,fert:1,myth:1};
+let speedIdx=2,lastSpeed=2;
+const day=()=>W.clock.day;
+const year=()=>Math.floor(W.clock.day/360)+1;
+const seasonIdx=()=>Math.floor((W.clock.day%360)/90);
+const seasonDay=()=>Math.floor(W.clock.day%90)+1;
+function dateStr(d){
+  d=d??W.clock.day;
+  return SEASONS[Math.floor((d%360)/90)]+' '+(Math.floor(d%90)+1)+', Year '+(Math.floor(d/360)+1);
+}
+function ordinal(n){return n+(['th','st','nd','rd'][((n%100/10|0)!==1&&n%10<4)?n%10:0]||'th');}
+function mythMult(){return W.comet&&W.comet.teeth&&day()<W.comet.until?2:1;}
+
+function simInit(){
+  // resource bases per settlement
+  for(const s of W.settlements){
+    let farm=0,forest=0,ore=0;
+    for(let dz=-5;dz<=5;dz++)for(let dx=-5;dx<=5;dx++){
+      if(!inB(s.cx+dx,s.cz+dz))continue;const b=W.biome[cIdx(s.cx+dx,s.cz+dz)];
+      if(b===B.FARM)farm++;if(b===B.FOREST||b===B.PINE)forest++;if(b===B.ROCK)ore++;
+    }
+    s.res={farm,forest,ore:Math.min(ore,14),fish:(s.harbor?12:0)+(s.river?5:0)};
+  }
+}
+
+/* ============================ WEATHER ==================================== */
+function tickWeather(){
+  const w=W.weather,si=seasonIdx();
+  w.t--;
+  if(w.t<=0){
+    const r=rand('sim');
+    const rainy=si===0?0.32:si===1?0.18:si===2?0.3:0.24;
+    if(r<rainy*(W.drought?0.35:1))w.state=si===3?'snow':(chance('sim',0.25)?'storm':'rain');
+    else if(r<rainy+0.24)w.state='overcast';
+    else w.state='clear';
+    w.t=2+randi('sim',5);
+    w.wind+=(rand('sim')-0.5)*1.2;
+  }
+  if(si===3&&(w.state==='snow'||w.state==='storm'))W.snowpack=Math.min(100,W.snowpack+3);
+  if(si!==3)W.snowpack=Math.max(0,W.snowpack-(si===0?2.2:1));
+  if(W.flooding>0)W.flooding--;
+  if(W.eclipse>0)W.eclipse-=1;
+}
+
+/* ============================ ECONOMY ==================================== */
+const NEED={grain:0.007,fish:0.003,timber:0.0006,ore:0.0002,tools:0.0004,cloth:0.0005,wine:0.0004};
+function price(s,g){
+  const need=s.pop*NEED[g]*25+5;
+  return GOODBASE[g]*clamp(need/(s.stores[g]+2),0.3,4);
+}
+function tickEconomy(){
+  const si=seasonIdx(),seasonF=[0.7,1.1,1.6,0.08][si];
+  for(const s of W.settlements){
+    const workF=clamp(s.pop/(s.pop+s.plagueDead+1),0.4,1)*(s.siegeBy?0.15:1);
+    s.stores.grain+=s.res.farm*0.92*seasonF*MOD.harvest*(W.drought?0.35:1)*workF;
+    s.stores.fish+=s.res.fish*0.8*workF;
+    s.stores.timber+=s.res.forest*0.05*workF;
+    s.stores.ore+=s.res.ore*0.05*workF;
+    if(s.kind!=='village'){ // craft conversion
+      const c=Math.min(s.stores.ore,s.stores.timber,1.4);
+      s.stores.ore-=c*0.6;s.stores.timber-=c*0.6;s.stores.tools+=c*0.8;
+    }
+    if(s.kind==='capital'){s.stores.cloth+=0.9;s.stores.wine+=0.7;}
+    for(const g of GOODS){
+      s.stores[g]-=s.pop*NEED[g]*(g==='grain'||g==='fish'?0:1); // food eaten in population tick
+      s.stores[g]=clamp(s.stores[g],0,s.pop*NEED[g]*220+400);
+    }
+    // taxes on production
+    W.treasury+=s.pop*0.0016*(MOD.tax/12)*(s.prosperity/60);
+  }
+  // caravans
+  if(W.caravans.length<Math.round(30*MOD.trade)&&day()%2===0){
+    for(let attempt=0;attempt<3;attempt++){
+      const oi=randi('sim',W.settlements.length),o=W.settlements[oi];
+      if(o.infected/Math.max(1,o.pop)>0.15||o.siegeBy)continue;
+      let best=null;
+      for(let di=0;di<W.settlements.length;di++){
+        if(di===oi)continue;const d=W.settlements[di];
+        if(d.infected/Math.max(1,d.pop)>0.15||d.siegeBy)continue; // emergent quarantine
+        for(const g of GOODS){
+          const margin=price(d,g)-price(o,g);
+          if(margin>GOODBASE[g]*0.5&&o.stores[g]>40){
+            const r=route(oi,di);if(!r)continue;
+            const score=margin/Math.max(600,r.len);
+            if(!best||score>best.score)best={score,di,g,r};
+          }
+        }
+      }
+      if(best){
+        const o2=W.settlements[oi],dd=W.settlements[best.di];
+        const qty=Math.min(o2.stores[best.g]*0.4,60);
+        o2.stores[best.g]-=qty;
+        const c={origin:oi,dest:best.di,good:best.g,qty,value:qty*price(dd,best.g),
+          poly:best.r.poly,len:best.r.len,departDay:day(),arriveDay:day()+best.r.len/1000,robbed:false,
+          proxy:null,sea:false};
+        W.caravans.push(c);
+        const rr=W.roads.find(r=>(r.a===oi&&r.b===best.di)||(r.a===best.di&&r.b===oi));
+        if(rr)rr.vol=(rr.vol||0)+1;
+        break;
+      }
+    }
+  }
+  // ambient market traffic keeps the roads alive even without arbitrage gaps
+  for(let amb=0;amb<2;amb++){
+    if(W.caravans.length>=Math.round(26*MOD.trade)||!chance('sim',0.5*MOD.trade))continue;
+    const oi=randi('sim',W.settlements.length);let di=randi('sim',W.settlements.length);
+    if(oi!==di){
+      const o=W.settlements[oi],d2=W.settlements[di];
+      if(o.infected/Math.max(1,o.pop)<=0.15&&d2.infected/Math.max(1,d2.pop)<=0.15&&!o.siegeBy&&!d2.siegeBy){
+        const g=GOODS.reduce((a,b)=>o.stores[a]>o.stores[b]?a:b);
+        if(o.stores[g]>25){
+          const r=route(oi,di);
+          if(r){
+            const qty=Math.min(o.stores[g]*0.25,40);o.stores[g]-=qty;
+            W.caravans.push({origin:oi,dest:di,good:g,qty,value:qty*price(d2,g),poly:r.poly,len:r.len,
+              departDay:day(),arriveDay:day()+r.len/1000,robbed:false,sea:false,proxy:null});
+            const rr=W.roads.find(r2=>(r2.a===oi&&r2.b===di)||(r2.a===di&&r2.b===oi));
+            if(rr)rr.vol=(rr.vol||0)+0.5;
+          }
+        }
+      }
+    }
+  }
+  // cogs between harbors
+  const harbors=W.settlements.map((s,i)=>s.harbor?i:-1).filter(i=>i>=0);
+  if(harbors.length>=2&&W.caravans.filter(c=>c.sea).length<6&&chance('sim',0.3*MOD.trade)){
+    const ai=pick('sim',harbors);let bi=pick('sim',harbors);
+    if(ai!==bi){
+      const a=W.settlements[ai],b=W.settlements[bi];
+      const g=pick('sim',['fish','grain','cloth','wine']);
+      if(a.stores[g]>50){
+        const qty=Math.min(a.stores[g]*0.4,90);a.stores[g]-=qty;
+        const poly=[{x:a.pos.x,z:a.pos.z},{x:(a.pos.x+b.pos.x)/2+(rand('sim')-0.5)*600,z:(a.pos.z+b.pos.z)/2+(rand('sim')-0.5)*600},{x:b.pos.x,z:b.pos.z}];
+        const len=dist2d(a.pos.x,a.pos.z,b.pos.x,b.pos.z)*1.2;
+        W.caravans.push({origin:ai,dest:bi,good:g,qty,value:qty*price(b,g),poly,len,departDay:day(),arriveDay:day()+len/1600,robbed:false,sea:true});
+      }
+    }
+  }
+  // arrivals
+  for(let i=W.caravans.length-1;i>=0;i--){
+    const c=W.caravans[i];
+    if(day()>=c.arriveDay){
+      const d=W.settlements[c.dest];
+      if(!c.robbed){
+        d.stores[c.good]+=c.qty;
+        const profit=c.value*0.35;
+        W.treasury+=profit*(MOD.tax/100);
+        d.prosperity=clamp(d.prosperity+0.4,0,100);
+        W.settlements[c.origin].prosperity=clamp(W.settlements[c.origin].prosperity+0.3,0,100);
+        // plague travels the trade network
+        const o=W.settlements[c.origin];
+        if(o.infected/Math.max(1,o.pop)>0.02&&d.infected<1&&chance('sim',0.35*MOD.vir)){
+          d.infected+=3;
+          emit('fates',7,d.pos,`The pestilence has come to ${d.name}, borne on the ${c.sea?'tide':'road'} from ${o.name}.`);
+        }
+      }
+      if(c.proxy){scene.remove(c.proxy);c.proxy=null;}
+      c.gone=true;
+      W.caravans.splice(i,1);
+    }
+  }
+  for(const r of W.roads)r.vol=(r.vol||0)*0.995;
+  // treasury upkeep drains — the predator on hoarding
+  W.treasury-=W.armies.length*14;
+  W.treasury-=W.settlements.reduce((t,s)=>t+s.garrison,0)*0.012;
+  if(W.treasury>15000)W.treasury-=(W.treasury-15000)*0.0012; // the court's splendor grows to meet the coin
+  W.treasury=Math.max(-500,W.treasury);
+}
+
+/* ============================ POPULATION ================================= */
+function tickPopulation(){
+  for(const s of W.settlements){
+    const foodNeed=s.pop*(NEED.grain+NEED.fish);
+    let got=Math.min(s.stores.grain,foodNeed*0.75);s.stores.grain-=got;
+    const fishGot=Math.min(s.stores.fish,foodNeed-got);s.stores.fish-=fishGot;got+=fishGot;
+    const hunger=foodNeed>0?clamp(1-got/foodNeed,0,1):0;
+    s.hunger=hunger;
+    const births=s.pop*(0.042/360)*MOD.birth*clamp(s.prosperity/55,0.4,1.5)*(1-hunger*0.7);
+    const deaths=s.pop*(0.026/360)*MOD.mort*(1+hunger*5)*(s.siegeBy?1.5:1);
+    s.pop=Math.max(5,s.pop+births-deaths);
+    s.unrest=clamp(s.unrest+hunger*1.6+(MOD.tax-12)*0.012-(s.festivalUntil>day()?0.5:0)-0.14,0,100);
+    s.prosperity=clamp(s.prosperity+(hunger>0.25?-0.35:0.06)-(s.siegeBy?0.5:0),1,100);
+    if(hunger>0.4&&!s.famineFlag&&s.pop>100){
+      s.famineFlag=true;
+      emit('trade',7,s.pos,`Famine stalks ${s.name}; the granaries stand empty and the ${['young','old','poor'][randi('sim',3)]} perish first.`);
+      W.legitimacy=clamp(W.legitimacy-4,0,100);
+    }
+    if(hunger<0.15)s.famineFlag=false;
+    // migration under misery
+    if((hunger>0.3||s.unrest>65)&&s.pop>60){
+      const to=W.settlements.filter(o=>o!==s&&(o.hunger||0)<0.1).sort((a,b)=>b.prosperity-a.prosperity)[0];
+      if(to){const flee=s.pop*0.002;s.pop-=flee;to.pop+=flee;} // nobody vanishes into thin air
+    }
+    // plague SIR
+    if(s.infected>0.3){
+      const N=Math.max(1,s.pop),beta=0.22*MOD.vir,gamma=0.075;
+      const Sf=Math.max(0,N-s.infected-s.recovered);
+      const newInf=beta*Sf*s.infected/N;
+      const rec=gamma*s.infected;
+      const dead=rec*0.28*MOD.leth;
+      s.infected=Math.max(0,s.infected+newInf-rec);
+      s.recovered+=rec-dead;
+      s.plagueDead+=dead;s.pop=Math.max(5,s.pop-dead);
+      s.pyres=s.infected/N>0.04;
+      s.unrest=clamp(s.unrest+s.infected/N*1.2,0,100);
+      if(s.infected<0.5){s.infected=0;s.pyres=false;
+        if(s.plagueDead>30)emit('fates',6,s.pos,`The pestilence loosens its grip on ${s.name}. ${Math.round(s.plagueDead)} souls were carried to the pyres.`);
+        s.recovered*=0.5;s.plagueDead=0;
+      }
+    }
+  }
+  W.plagueActive=W.settlements.some(s=>s.infected>0.5);
+}
+
+/* ============================ POLITICS =================================== */
+function ageOf(n){return Math.floor((day()-n.birthDay)/360);}
+function tickPolitics(){
+  W.legitimacy=clamp(W.legitimacy+(55-W.legitimacy)*0.0012,0,100);
+  const avgUnrest=W.settlements.reduce((t,s)=>t+s.unrest,0)/W.settlements.length;
+  for(let hi=1;hi<W.houses.length;hi++){
+    const h=W.houses[hi];if(h.exiled)continue;
+    let drift=(52-h.loyalty)*0.0018;
+    drift-=(MOD.tax-12)*0.0035*MOD.aggr;
+    drift-=avgUnrest*0.0012*MOD.aggr;
+    drift+=(W.legitimacy-50)*0.0012;
+    const m=W.monarch;
+    if(m&&m.alive){
+      if(m.traits.includes('cruel'))drift-=0.011;
+      if(m.traits.includes('dull'))drift-=0.005;
+      if(m.traits.includes('just'))drift+=0.006;
+      if(m.traits.includes('generous'))drift+=0.004;
+    }
+    if(h.might>1.1)drift-=0.005; // strong houses chafe under any crown
+    h.loyalty=clamp(h.loyalty+drift,0,100);
+    // slights and grudges — the spark supply for civil war
+    if(chance('sim',0.001*MOD.aggr)){
+      h.loyalty=clamp(h.loyalty-(8+randi('sim',12)),0,100);
+      const seatPos=W.settlements[h.seat]?.pos||W.capital.pos;
+      emit('crown',4,seatPos,pick('sim',[
+        `${h.name} is passed over for the office of Warden of the Marches; its lord leaves court without taking leave.`,
+        `A hunting dispute on the borders of ${nearestPlaceName(seatPos.x,seatPos.z)} ends in drawn steel; ${h.name} nurses the insult.`,
+        `The crown seizes a contested toll-bridge claimed by ${h.name}. Harsh words are spoken in the hall.`,
+        `At the feast, the herald seats ${h.name} below the salt. The slight is not forgotten.`]));
+    }else if(h.loyalty<35&&W.treasury>3000&&chance('sim',0.004)){
+      W.treasury-=600;h.loyalty=clamp(h.loyalty+12,0,100);
+      emit('crown',4,W.capital.pos,`Seeking peace at home, the crown grants lands and offices to ${h.name}; old wounds are salved with gold.`);
+    }
+  }
+  // riots & revolts
+  for(const s of W.settlements){
+    if(s.unrest>72&&chance('sim',0.02)){
+      s.unrest-=14;s.prosperity=clamp(s.prosperity-3,1,100);
+      emit('fates',5,s.pos,`Riot in ${s.name}! The mob overturns the market stalls and cries against the crown.`);
+      if(chance('sim',0.3))igniteFire(s,1,'riot');
+    }
+    if(s.unrest>90&&!s.revolted&&s.owner===0&&s.kind!=='capital'&&chance('sim',0.05)){
+      let nh=0,bd=1e18;
+      W.houses.forEach((h,hi)=>{if(hi&&!h.exiled){const d=dist2d(s.pos.x,s.pos.z,W.settlements[h.seat].pos.x,W.settlements[h.seat].pos.z);if(d<bd){bd=d;nh=hi;}}});
+      if(nh){s.owner=nh;s.revolted=true;s.unrest=45;
+        emit('war',8,s.pos,`${s.name} rises in revolt and hoists the banner of ${W.houses[nh].name}!`);
+        refreshOverlay();
+      }
+    }
+  }
+  // notables: birthdays, deaths, births, marriages
+  for(const n of W.notables){
+    if(!n.alive)continue;
+    if((day()-n.birthDay)%360===0&&day()>n.birthDay){
+      n.age=ageOf(n);
+      let q=n.age<50?0.006:(n.age-44)*0.007;
+      if(n.traits.includes('sickly'))q*=2.6;
+      if(W.plagueActive)q*=1.5;
+      if(chance('sim',q*mythMult()))killNotable(n,pick('sim',['of a sudden fever','of the flux','in a fall from horseback','of a wound gone sour','peacefully, abed','choking at the feast']));
+    }
+  }
+  // births — the cast stays a cast, not a census (~140 living notables)
+  if(day()%9===0){
+    const aliveCount=W.notables.filter(x=>x.alive).length;
+    for(const n of W.notables){
+      if(aliveCount>=140)break;
+      if(!n.alive||n.sex!=='f'||!n.spouse)continue;
+      const sp=notableById(n.spouse);if(!sp||!sp.alive)continue;
+      if(n.age>=18&&n.age<=44){
+        let p=0.006*(n.house===0||sp.house===0?MOD.fert:1);
+        if(n.traits.includes('fertile'))p*=1.6;
+        if(chance('sim',p)){
+          const ks=chance('sim',0.5)?'m':'f';
+          const parent=sp.role==='monarch'||sp.role==='head'?sp:n;
+          const kid=mkNotable({name:personName(ks),sex:ks,age:0,birthDay:day(),house:parent.house,
+            role:parent.role==='monarch'?'heir':'scion',traits:twoTraits(),agenda:'is yet in swaddling'});
+          parent.heirs.push(kid.id);
+          if(parent.role==='monarch')
+            emit('crown',7,W.capital.pos,`A ${ks==='f'?'daughter':'son'} is born to ${fullTitle(parent)} — the ${ks==='f'?'princess':'prince'} ${kid.name}. Bells ring in ${W.capital.name}.`);
+          else if(chance('sim',0.4))
+            emit('crown',3,W.settlements[houseOf(parent).seat]?.pos||W.capital.pos,`${houseOf(parent).name} welcomes a ${ks==='f'?'daughter':'son'}, ${kid.name}.`);
+        }
+      }
+    }
+  }
+  // arranged marriages for alliance value
+  if(day()%37===0){
+    const single=W.notables.filter(n=>n.alive&&!n.spouse&&ageOf(n)>=17&&ageOf(n)<=45&&(n.role==='heir'||n.role==='scion'||n.role==='cousin'));
+    for(const a of single){
+      const b=single.find(b2=>b2!==a&&b2.sex!==a.sex&&b2.house!==a.house&&!b2._just);
+      if(b&&chance('sim',0.35)){
+        a.spouse=b.id;b.spouse=a.id;a._just=b._just=true;
+        const royal=a.house===0||b.house===0;
+        const other=W.houses[a.house===0?b.house:a.house];
+        if(royal&&other){other.loyalty=clamp(other.loyalty+10,0,100);}
+        if(royal||chance('sim',0.3))
+          emit('crown',royal?6:3,W.capital.pos,
+            `${fullTitle(a)} of ${houseOf(a).name} is wed to ${fullTitle(b)} of ${houseOf(b).name}${royal?'; the match binds the houses in friendship':''}. There is feasting ${royal?'for three days':'in the hall'}.`,{festival:royal});
+        if(royal)W.capital.festivalUntil=day()+3;
+        break;
+      }
+    }
+    W.notables.forEach(n=>delete n._just);
+  }
+  // an exiled house's seat does not stay empty forever: new blood is raised to the peerage
+  if(day()%97===0){
+    const exiledIdx=W.houses.findIndex((h,i)=>i>0&&h.exiled&&day()-(h.exiledDay||0)>7*360);
+    if(exiledIdx>0&&chance('sim',0.3)){
+      const h=W.houses[exiledIdx];
+      const beasts=['Stag','Wolf','Raven','Heron','Boar','Ox','Falcon','Adder'];
+      h.name='House '+(chance('sim',0.5)?pick('sim',NAMEB.pfx)+pick('sim',NAMEB.sfx):pick('sim',beasts)+pick('sim',['mane','fell','marck','wood','helm']));
+      h.charge=pick('sim',CHARGES);h.exiled=false;h.loyalty=68;h.might=0.6+rand('sim')*0.7;h.grudges={};
+      delete h._url;
+      const sx=chance('sim',0.5)?'m':'f';
+      const head=mkNotable({name:personName(sx),sex:sx,age:32+randi('sim',15),house:exiledIdx,role:'head',
+        traits:twoTraits(),agenda:'means to prove the new blood worthy'});
+      head.birthDay=day()-head.age*360;
+      h.head=head.id;
+      const sp=mkNotable({name:personName(sx==='m'?'f':'m'),sex:sx==='m'?'f':'m',age:26+randi('sim',15),house:exiledIdx,role:'spouse',traits:twoTraits()});
+      sp.birthDay=day()-sp.age*360;
+      head.spouse=sp.id;sp.spouse=head.id;
+      const seatPos=W.settlements[h.seat]?.pos||W.capital.pos;
+      emit('crown',6,seatPos,`The crown raises new blood to the peerage: ${fullTitle(head)} is granted the forfeit seat of ${W.settlements[h.seat]?.name||'the marches'}, and ${h.name} is entered in the rolls.`);
+      refreshHousePanel();
+    }
+  }
+  // succession crisis / civil war spark
+  checkWarSpark();
+  // festivals
+  if(W.clock.day%360===185&&!W.drought&&W.capital.hunger<0.15){
+    W.capital.festivalUntil=day()+4;
+    W.settlements.forEach(s=>s.unrest=clamp(s.unrest-6,0,100));
+    emit('crown',3,W.capital.pos,`The Feast of High Summer is held in ${W.capital.name}; there are games, and a great ox is roasted whole.`,{festival:true});
+  }
+  if(W.clock.day%360===230&&!W.drought){
+    emit('trade',3,W.capital.pos,`The harvest is brought in ${MOD.harvest>1.2?'heavy and golden':'in good order'}; tithes fill the granaries.`,{festival:true});
+    W.legitimacy=clamp(W.legitimacy+1,0,100);
+  }
+}
+function killNotable(n,cause,silent){
+  if(!n.alive)return;
+  n.alive=false;n.deathDay=day();
+  const wasMonarch=n===W.monarch;
+  const h=houseOf(n);
+  if(!silent){
+    const pos=n.house===0?W.capital.pos:(W.settlements[h.seat]?.pos||W.capital.pos);
+    const pri=wasMonarch?10:n.role==='head'?7:n.role==='heir'?6:2;
+    if(pri>2||n.epithet||chance('sim',0.22))
+      emit('crown',pri,pos,`${fullTitle(n)}${n.house>0&&n.role!=='head'?' of '+houseOf(n).name:''} has died ${cause}, in the ${ordinal(Math.max(1,n.age||ageOf(n)))} year of ${n.sex==='f'?'her':'his'} age.`);
+  }
+  if(n.spouse){const sp=notableById(n.spouse);if(sp)sp.spouse=null;}
+  if(wasMonarch)succession();
+  else if(n.role==='head'&&h){
+    const heir=n.heirs.map(notableById).find(k=>k&&k.alive&&ageOf(k)>=16);
+    if(heir){heir.role='head';h.head=heir.id;heir.agenda=n.agenda;}
+    else{const any=W.notables.find(m=>m.alive&&m.house===n.house&&ageOf(m)>=16);if(any){any.role='head';h.head=any.id;}}
+  }
+}
+function succession(){
+  const old=W.monarch;
+  const heirs=old.heirs.map(notableById).filter(n=>n&&n.alive).sort((a,b)=>b.age-a.age||a.id-b.id);
+  const adult=heirs.find(h=>ageOf(h)>=16);
+  if(adult){
+    W.monarch=adult;adult.role='monarch';adult.house=0;adult.agenda='wears the crown newly';
+    W.reignNum[adult.name]=(W.reignNum[adult.name]||0)+1;
+    W.reignStart=day();
+    W.legitimacy=clamp(W.legitimacy+8,0,100);
+    reignHeader(adult);
+    emit('crown',9,W.capital.pos,`${fullTitle(adult)} is crowned in ${W.capital.name} amid solemn rites and the acclaim of the crowd.`,{festival:true});
+  }else if(heirs.length){
+    const child=heirs[0];
+    W.monarch=child;child.role='monarch';child.house=0;child.agenda='reigns under a regency';
+    W.reignNum[child.name]=(W.reignNum[child.name]||0)+1;
+    W.reignStart=day();
+    W.legitimacy=clamp(W.legitimacy-18,0,100);
+    W.settlements.forEach(s=>s.unrest=clamp(s.unrest+10,0,100));
+    reignHeader(child);
+    emit('crown',9,W.capital.pos,`The crown passes to the child ${child.name}, but ${child.age<8?'a babe':'a minor'} cannot rule; a regency of quarrelsome lords governs in ${child.sex==='f'?'her':'his'} name.`);
+    W.houses.forEach(h=>{if(!h.crown&&!h.exiled)h.loyalty=clamp(h.loyalty-12,0,100);});
+    // a child on the throne is an invitation
+    if(!W.war){
+      const amb=W.houses.map((h,i)=>i).filter(i=>i>0&&!W.houses[i].exiled&&W.houses[i].loyalty<42)
+        .sort((a,b)=>W.houses[b].might-W.houses[a].might)[0];
+      if(amb!==undefined&&chance('sim',0.5)){W.truceUntil=0;startWar(amb,'moves against the child on the throne');}
+    }
+  }else{
+    // succession crisis: strongest house with a living claimant takes the throne
+    W.legitimacy=clamp(W.legitimacy-30,0,100);
+    const claimants=W.houses.map((h,i)=>i).filter(i=>i>0&&!W.houses[i].exiled)
+      .sort((a,b)=>W.houses[b].might-W.houses[a].might);
+    let head=null,ci=-1;
+    for(const c of claimants){
+      const cand=notableById(W.houses[c].head);
+      if(cand&&cand.alive){head=cand;ci=c;break;}
+      const any=W.notables.filter(n=>n.alive&&n.house===c&&ageOf(n)>=16).sort((x,y)=>ageOf(y)-ageOf(x))[0];
+      if(any){head=any;ci=c;W.houses[c].head=any.id;any.role='head';break;}
+    }
+    if(!head){ // the realm scrapes the bottom of the barrel
+      head=W.notables.filter(n=>n.alive&&ageOf(n)>=16).sort((x,y)=>ageOf(y)-ageOf(x))[0]
+        ||mkNotable({name:personName('m'),sex:'m',age:30,birthDay:day()-30*360,house:0,role:'monarch',traits:twoTraits(),agenda:'claims a crown found in a ditch'});
+    }
+    emit('crown',10,W.capital.pos,`${fullTitle(old)} dies without an heir of the body! The succession is contested${ci>0?', and '+W.houses[ci].name+' presses its claim':''}.`);
+    W.monarch=head;head.role='monarch';
+    const rival=claimants.find(i=>i!==ci&&W.houses[i].loyalty<55);
+    W.reignNum[head.name]=(W.reignNum[head.name]||0)+1;W.reignStart=day();
+    head.house=0;if(ci>0){W.houses[ci].loyalty=95;adoptDynasty(ci);}
+    reignHeader(head);
+    if(rival!==undefined&&!W.war)startWar(rival,'presses a rival claim to the throne');
+  }
+}
+
+/* ============================ MILITARY =================================== */
+let armyN=0;
+function raiseArmy(hi,fromS,strength,side){
+  const s=W.settlements[fromS];
+  const commanders=W.notables.filter(n=>n.alive&&n.house===hi&&ageOf(n)>=16&&(n.role==='head'||n.role==='scion'||n.role==='monarch'||n.role==='cousin'));
+  const cmd=commanders[0]||W.notables.find(n=>n.alive&&ageOf(n)>=16);
+  strength=Math.min(strength,s.pop*0.25);
+  s.pop-=strength*0.7;
+  const a={id:++armyN,house:hi,side,name:'Host of '+W.houses[hi].name.replace('House ',''),
+    strength,morale:70+randi('sim',20),supply:100,commander:cmd?cmd.id:null,
+    at:fromS,target:null,poly:null,departDay:0,arriveDay:0,state:'idle',_rpos:{x:s.pos.x,y:s.pos.y,z:s.pos.z},
+    flag:null,battleUntil:0,siegeUntil:0,home:fromS};
+  makeArmyFlag(a);
+  W.armies.push(a);
+  return a;
+}
+function makeArmyFlag(a){
+  const tex=new THREE.CanvasTexture(makeSigil(W.houses[a.house].sigilHue,W.houses[a.house].charge));
+  const bn=new THREE.Mesh(new THREE.PlaneGeometry(14,17),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+  bn.userData.pick={type:'army',a};
+  scene.add(bn);a.flag=bn;
+}
+function marchArmy(a,toS){
+  const r=route(a.at,toS);
+  if(!r){a.state='idle';return;}
+  a.target=toS;a.poly=r.poly;a.departDay=day();a.arriveDay=day()+r.len/700;a.state='march';
+}
+function startWar(hi,why){
+  if(W.war)return;
+  const h=W.houses[hi];
+  W.war={rebel:hi,score:0,start:day(),name:'the '+pick('sim',['War of the ','Rising of the ','Rebellion of the '])+h.name.replace('House ','')};
+  const rebelPop=W.settlements.filter(s=>s.owner===hi).reduce((t,s)=>t+s.pop,0)+400;
+  raiseArmy(hi,h.seat,rebelPop*0.09*h.might*MOD.aggr,'rebel');
+  raiseArmy(0,0,W.capital.pop*0.10+W.treasury*0.004,'crown');
+  emit('war',10,W.settlements[h.seat].pos,`${h.name} ${why||'renounces its oaths'} and raises its banners against the crown! ${W.war.name} begins.`);
+  // allies declare by loyalty & grudge
+  W.houses.forEach((oh,oi)=>{
+    if(oi===0||oi===hi||oh.exiled)return;
+    if(oh.loyalty<32&&chance('sim',0.4)){
+      raiseArmy(oi,oh.seat,600*oh.might,'rebel');
+      emit('war',8,W.settlements[oh.seat].pos,`${oh.name} declares for the rebels; old grudges run deep.`);
+    }
+  });
+  refreshOverlay();
+}
+function checkWarSpark(){
+  if(W.war||day()<W.truceUntil)return;
+  for(let hi=1;hi<W.houses.length;hi++){
+    const h=W.houses[hi];
+    if(h.exiled)continue;
+    if(h.loyalty<30&&chance('sim',0.0045*MOD.aggr*mythMult())){
+      startWar(hi,pick('sim',['can stomach the crown’s taxes no longer','declares the crown unfit to rule','rises to avenge old slights']));
+      return;
+    }
+  }
+}
+function armySimPos(a){ // authoritative position in sim time (render _rpos may lag)
+  if((a.state==='march'||a.state==='rout')&&a.poly){
+    const f=clamp((day()-a.departDay)/Math.max(0.01,a.arriveDay-a.departDay),0,1);
+    const p=polyPos(a.poly,f);
+    if(p)return p;
+  }
+  const s=W.settlements[a.at];
+  return {x:s.pos.x,z:s.pos.z};
+}
+function tickMilitary(){
+  if(!W.war&&W.armies.length===0)return;
+  const now=day();
+  for(const a of W.armies)a._spos=armySimPos(a);
+  for(const a of W.armies){
+    a.supply-=a.state==='march'?0.8:0.4;
+    if(a.supply<=0){a.strength*=0.995;a.morale=Math.max(20,a.morale-0.3);}
+    if(a.state==='idle'&&W.war){
+      // pick objective
+      const enemyOwner=(si)=>a.side==='crown'?(W.settlements[si].owner===W.war.rebel||(W.armies.some(x=>x.side==='rebel'&&x.house===W.settlements[si].owner))):(W.settlements[si].owner===0);
+      let tgt=-1,bd=1e18;
+      W.settlements.forEach((s,si)=>{
+        if(si===a.at)return;
+        const hostile=a.side==='crown'?s.owner!==0:si===0||s.owner===0;
+        if(!hostile)return;
+        const d=dist2d(a._spos.x,a._spos.z,s.pos.x,s.pos.z);
+        if(d<bd){bd=d;tgt=si;}
+      });
+      if(tgt>=0)marchArmy(a,tgt);
+    }
+    if(a.state==='march'&&now>=a.arriveDay){
+      a.at=a.target;a.state='arrived';
+      const s=W.settlements[a.at];
+      const hostile=a.side==='crown'?s.owner!==0&&(s.owner===W.war?.rebel||W.armies.some(x=>x.side==='rebel'&&x.house===s.owner)):s.owner===0;
+      if(W.war&&hostile){
+        if(s.walls>0&&s.garrison>20){
+          a.state='siege';a.siegeUntil=now+18+s.walls*22-(seasonIdx()===3?0:6);
+          s.siegeBy={houseName:W.houses[a.house].name,army:a};
+          emit('war',8,s.pos,`${a.name} invests ${s.name}; siege lines are dug and a camp of tents rises before the walls.`);
+        }else takeSettlement(a,s);
+      }else a.state='idle';
+    }
+    if(a.state==='siege'){
+      const s=W.settlements[a.at];
+      s.stores.grain=Math.max(0,s.stores.grain-s.pop*0.004);
+      if(now>=a.siegeUntil){
+        s.siegeBy=null;takeSettlement(a,s);
+      }else if(chance('sim',0.01)){ // sortie
+        const cmd=notableById(a.commander);
+        if(resolveClash(a,{strength:s.garrison*3,morale:60,house:s.owner,name:'garrison of '+s.name})){
+          emit('war',6,s.pos,`A sortie from ${s.name} is beaten back with slaughter at the gates.`);
+        }else{
+          a.state='rout';routHome(a);s.siegeBy=null;
+          emit('war',8,s.pos,`The defenders of ${s.name} sally forth at dawn and put the besiegers to flight!`);
+          warScore(a.side==='crown'?-14:14);
+        }
+      }
+    }
+    if(a.state==='rout'&&now>=a.arriveDay){a.state='idle';a.at=a.target;a.morale=55;}
+  }
+  // field battles: hostile armies in contact
+  for(let i=0;i<W.armies.length;i++)for(let j=i+1;j<W.armies.length;j++){
+    const a=W.armies[i],b=W.armies[j];
+    if(a.side===b.side||a.state==='battle'||b.state==='battle'||a.state==='rout'||b.state==='rout')continue;
+    if(dist2d(a._spos.x,a._spos.z,b._spos.x,b._spos.z)<130){
+      a.state=b.state='battle';a.battleUntil=b.battleUntil=now+2;a.foe=b;b.foe=a;
+      const where=nearestPlaceName(a._spos.x,a._spos.z);
+      a.battleName=b.battleName='the Battle of '+where;a.battlePos={x:a._spos.x,z:a._spos.z};b.battlePos=a.battlePos;
+      emit('war',8,a.battlePos,`The hosts meet near ${where}! Arrows darken the sky as the lines close.`);
+    }
+  }
+  for(const a of W.armies){
+    if(a.state==='battle'&&day()>=a.battleUntil&&a.foe){
+      const b=a.foe;
+      if(b.state!=='battle'){a.state='idle';continue;}
+      const aWins=resolveClash(a,b);
+      const w=aWins?a:b,l=aWins?b:a;
+      const cw=notableById(w.commander),cl=notableById(l.commander);
+      const pos=a.battlePos||{x:a._spos.x,z:a._spos.z};
+      l.strength*=0.42;l.morale=35;w.strength*=0.85;
+      W.stats.battles++;
+      let line=`${w.name} carries the field at ${a.battleName}. The ${l.name.toLowerCase()} breaks and flees ${pick('sim',['into the dusk','through the fords','into the woods'])}.`;
+      if(cl&&chance('sim',0.22)){killNotable(cl,`at ${a.battleName}, sword in hand`,true);line+=` ${fullTitle(cl)} is slain in the rout.`;}
+      else if(cw&&!cw.epithet&&chance('sim',0.3)){cw.epithet='the '+pick('sim',['Ironhand','Unbroken','Lionhearted','Grim','Victorious']);line+=` Men now name the victor ${fullTitle(cw)}.`;}
+      emit('war',8,pos,line);
+      addCairn(pos.x,pos.z,a.battleName+', Year '+year()+' — here '+w.name+' prevailed.');
+      warScore(w.side==='crown'?20:-20);
+      a.state=b.state='idle';a.foe=b.foe=null;
+      routHome(l);l.state='rout';
+      if(l.strength<60)disbandArmy(l);
+      if(w.strength<60)disbandArmy(w);
+    }
+  }
+  // war score over time & exhaustion
+  if(W.war){
+    if(day()%30===0)warScore(W.settlements.filter(s=>s.owner===W.war.rebel).length>0?0:2);
+    const rebelAlive=W.armies.some(a=>a.side==='rebel');
+    const crownAlive=W.armies.some(a=>a.side==='crown');
+    if(!rebelAlive&&!crownAlive)endWar(0);
+    else if(!rebelAlive&&day()-W.war.start>40)endWar(1);
+    else if(!crownAlive&&day()-W.war.start>40)endWar(-1);
+    else if(W.war.score>=100)endWar(1);
+    else if(W.war.score<=-100)endWar(-1);
+    else if(day()-W.war.start>1400)endWar(0);
+    // crown reinforcements if it can pay
+    if(W.war&&!crownAlive&&W.treasury>1500&&chance('sim',0.05)){
+      W.treasury-=800;raiseArmy(0,0,W.capital.pop*0.08,'crown');
+    }
+  }
+}
+function warScore(d){if(W.war)W.war.score=clamp(W.war.score+d,-120,120);}
+function routHome(a){
+  const r=route(a.at,a.home);
+  if(r){a.target=a.home;a.poly=r.poly;a.departDay=day();a.arriveDay=day()+r.len/900;}
+  else{a.state='idle';}
+}
+function resolveClash(a,b){
+  const ca=notableById(a.commander),cb=notableById(b.commander);
+  let pa=a.strength*(a.morale/70)*(ca&&ca.traits.includes('bold')?1.18:1);
+  let pb=b.strength*((b.morale||60)/70)*(cb&&cb.traits&&cb.traits.includes('bold')?1.18:1);
+  if(W.weather.state==='storm'||W.weather.state==='rain'){pa*=0.9+rand('sim')*0.2;pb*=0.9+rand('sim')*0.2;}
+  return pa*(0.7+rand('sim')*0.6)>pb*(0.7+rand('sim')*0.6);
+}
+function takeSettlement(a,s){
+  const si=W.settlements.indexOf(s);
+  const cmd=notableById(a.commander);
+  const cruel=cmd&&cmd.traits.includes('cruel');
+  if(cruel||chance('sim',0.25)){
+    s.prosperity=clamp(s.prosperity-25,1,100);s.pop*=0.9;
+    igniteFire(s,2,'sack');
+    emit('war',9,s.pos,`${s.name} is taken and given over to sack! Smoke rises from the ${pick('sim',['market','temple quarter','granaries'])} and the chronicler weeps to record it.`);
+  }else{
+    emit('war',8,s.pos,`${s.name} opens its gates to ${a.name}; the banner of ${W.houses[a.house].name} flies from its walls.`);
+  }
+  s.owner=a.house;s.garrison=Math.round(a.strength*0.1);
+  warScore(a.side==='crown'?30:-30);
+  a.state='idle';
+  refreshOverlay();
+  if(si===0&&a.side==='rebel')endWar(-1);
+  else if(W.war&&si===W.houses[W.war.rebel].seat&&a.side==='crown')endWar(1);
+}
+function disbandArmy(a){
+  const s=W.settlements[a.home];if(s)s.pop+=a.strength*0.6;
+  W.settlements.forEach(x=>{if(x.siegeBy&&x.siegeBy.army===a)x.siegeBy=null;}); // a dead army lifts its siege
+  if(a.flag){scene.remove(a.flag);a.flag=null;}
+  a.gone=true;
+  W.armies=W.armies.filter(x=>x!==a);
+}
+function adoptDynasty(hi){ // the crown takes the victorious house's name and arms
+  const h=W.houses[hi],c=W.houses[0];
+  c.name=h.name;c.sigilHue=h.sigilHue;c.charge=h.charge;delete c._url;
+  const img=document.getElementById('crownsig');if(img)img.src=sigURL(0);
+}
+function endWar(result){ // 1 crown wins, -1 rebels win, 0 white peace
+  if(!W.war)return;
+  const h=W.houses[W.war.rebel],warName=W.war.name;
+  const dur=Math.max(1,Math.round((day()-W.war.start)/30));
+  [...W.armies].forEach(disbandArmy);
+  W.settlements.forEach(s=>{s.siegeBy=null;s.revolted=false;});
+  if(result===1){
+    h.exiled=true;h.exiledDay=day();
+    W.settlements.forEach(s=>{if(s.owner===W.war.rebel)s.owner=0;});
+    W.legitimacy=clamp(W.legitimacy+15,0,100);
+    const head=notableById(h.head);
+    emit('war',10,W.capital.pos,`${warName} is ended after ${dur} months. ${h.name} is attainted and driven into exile beyond the mountains; its sigil is struck from the rolls.`);
+    if(head&&chance('sim',0.5))killNotable(head,'on the scaffold, unrepentant',true);
+  }else if(result===-1){
+    const head=notableById(h.head);
+    if(head&&head.alive){
+      const old=W.monarch;
+      if(old&&old.alive){old.role='courtier';old.agenda='broods on a stolen crown';}
+      W.monarch=head;head.role='monarch';head.house=0;
+      h.loyalty=95;W.legitimacy=42;
+      adoptDynasty(W.war.rebel);
+      W.reignNum[head.name]=(W.reignNum[head.name]||0)+1;W.reignStart=day();
+      W.settlements.forEach(s=>{if(s.owner===W.war.rebel)s.owner=0;});
+      // the house needs a new head now that its lord wears the crown
+      const newHead=W.notables.filter(n=>n.alive&&n.house===W.war.rebel&&n!==head&&ageOf(n)>=16).sort((a,b)=>ageOf(b)-ageOf(a))[0];
+      if(newHead){newHead.role='head';h.head=newHead.id;}
+      reignHeader(head);
+      emit('war',10,W.capital.pos,`The old dynasty is cast down! ${fullTitle(head)} of ${h.name} takes the throne by right of conquest, and ${warName} passes into song.`);
+    }else{
+      emit('war',9,W.capital.pos,`${warName} gutters out in exhaustion; a hollow peace settles over burnt fields.`);
+    }
+  }else{
+    h.loyalty=45;
+    emit('war',8,W.capital.pos,`${warName} ends after ${dur} months, with neither side master of the field. A weary peace is sworn at the border stones.`);
+  }
+  W.war=null;W.truceUntil=day()+1500;
+  refreshOverlay();
+}
+function nearestPlaceName(x,z){
+  let best=W.settlements[0],bd=1e18;
+  for(const s of W.settlements){const d=dist2d(x,z,s.pos.x,s.pos.z);if(d<bd){bd=d;best=s;}}
+  return best.name;
+}
+
+/* ============================ THREATS ==================================== */
+function igniteFire(s,n,cause){
+  const cands=s.buildings.filter(b=>b.state==='sound');
+  let lit=0;
+  for(let i=0;i<n&&cands.length;i++){
+    const b=pick('sim',cands);
+    if(b.state==='sound'){b.state='burning';b.burnT=0;s.fires.push(b);updateBuildingInstance(b);lit++;}
+  }
+  return lit;
+}
+function tickThreats(){
+  const dis=MOD.disaster*mythMult();
+  const myth=MOD.myth;
+  // random plague genesis (rare; trade is the usual vector)
+  if(!W.plagueActive&&chance('sim',0.00035*dis*MOD.vir)){
+    const s=pick('sim',W.settlements.filter(x=>x.harbor||x.kind==='capital'))||W.capital;
+    s.infected=4;
+    emit('fates',7,s.pos,`A strange sickness appears in ${s.name}: fevers, and dark blooms upon the skin. The learned mutter of ill airs.`);
+  }
+  // fires: spread & burn out
+  for(const s of W.settlements){
+    if(!s.fires.length)continue;
+    const wet=W.weather.state==='rain'||W.weather.state==='storm'||W.weather.state==='snow';
+    const dry=W.drought?1.8:1;
+    const newFires=[];
+    for(const b of s.fires){
+      b.burnT++;
+      if(b.burnT>=3){
+        b.state='ruin';b.rebuildT=day()+180+randi('sim',300);s.ruinCount++;
+        updateBuildingInstance(b);continue;
+      }
+      // spread through the adjacency graph, biased by wind
+      for(const o of s.buildings){
+        if(o.state!=='sound')continue;
+        const d=dist2d(b.x,b.z,o.x,o.z);
+        if(d<24&&chance('sim',(wet?0.05:0.3)*dry)){
+          const windDot=((o.x-b.x)*Math.cos(W.weather.wind)+(o.z-b.z)*Math.sin(W.weather.wind))/(d||1);
+          if(chance('sim',0.5+windDot*0.4)){o.state='burning';o.burnT=0;newFires.push(o);updateBuildingInstance(o);}
+        }
+      }
+      newFires.push(b);
+    }
+    const before=s.fires.length;
+    s.fires=newFires.filter(b=>b.state==='burning');
+    if(before>0&&s.fires.length===0){
+      if(s.ruinCount>=6){W.stats.greatFires++;
+        emit('fates',8,s.pos,`The great fire of ${s.name} is spent at last. ${s.ruinCount} roofs are fallen to ash; the survivors sift the ruins.`);
+        s.prosperity=clamp(s.prosperity-12,1,100);}
+    }
+    if(s.fires.length===5&&!s._gfAnnounced){s._gfAnnounced=true;
+      emit('fates',8,s.pos,`Fire leaps from roof to roof in ${s.name}! The wind ${wet?'and the rain contend with':'feeds'} the blaze.`);}
+    if(!s.fires.length)s._gfAnnounced=false;
+  }
+  // rebuilding — scars heal slowly, gated on prosperity
+  if(day()%10===0)for(const s of W.settlements)for(const b of s.buildings){
+    if(b.state==='ruin'&&day()>b.rebuildT&&s.prosperity>40&&chance('sim',0.3)){
+      b.state='sound';s.ruinCount=Math.max(0,s.ruinCount-1);updateBuildingInstance(b);
+    }
+  }
+  // lightning ignition
+  if(W.weather.state==='storm'&&chance('sim',0.02*dis)){
+    const s=pick('sim',W.settlements);
+    if(igniteFire(s,1,'lightning'))emit('fates',5,s.pos,`Lightning strikes a roof in ${s.name} and flames take hold.`);
+  }
+  // drought
+  const si=seasonIdx();
+  if(si===1&&!W.drought&&W.clock.day%360>=95&&W.clock.day%360<=100&&chance('sim',0.05*dis)){
+    W.drought=true;lastSeasonKey='';
+    emit('fates',7,W.capital.pos,`No rain has fallen since the spring; the realm is gripped by drought. Fields wither to straw and the millponds shrink.`);
+  }
+  if(W.drought&&si===2){W.drought=false;lastSeasonKey='';
+    emit('fates',5,W.capital.pos,`Autumn rains at last break the drought, though the harvest is thin.`);}
+  // flood
+  if(si===0&&W.snowpack>60&&(W.weather.state==='storm'||W.weather.state==='rain')&&chance('sim',0.05*dis)&&!W.flooding){
+    W.flooding=8;W.snowpack=15;
+    for(const s of W.settlements)if(s.river){
+      s.prosperity=clamp(s.prosperity-8,1,100);
+      const riverside=s.buildings.filter(b=>b.state==='sound').slice(0,3);
+      for(const b of riverside)if(chance('sim',0.4)){b.state='ruin';b.rebuildT=day()+150;s.ruinCount++;updateBuildingInstance(b);}
+      emit('fates',7,s.pos,`The river bursts its banks at ${s.name}! Brown water sweeps through the low streets, carrying off byres and bridges.`);
+    }
+  }
+  // earthquake
+  if(chance('sim',0.00009*dis)){
+    const ex=(rand('sim')-0.5)*SIZE*0.8,ez=(rand('sim')-0.5)*SIZE*0.8;
+    cam.shake=26;
+    let wrecked=0;
+    for(const s of W.settlements){
+      if(dist2d(ex,ez,s.pos.x,s.pos.z)>1100)continue;
+      for(const b of s.buildings)if(b.state==='sound'&&chance('sim',0.06)){b.state='ruin';b.rebuildT=day()+240;s.ruinCount++;updateBuildingInstance(b);wrecked++;}
+      if(chance('sim',0.4))igniteFire(s,1,'quake');
+    }
+    emit('fates',9,{x:ex,z:ez},`The earth shakes! Walls crack and bells toll of themselves${wrecked?'; '+wrecked+' buildings are thrown down':''}. The pious speak of judgment.`);
+  }
+  // bandits
+  tickBandits(dis);
+  // dragon
+  if(myth>=1)tickDragon();
+  // omens
+  tickOmens(myth,dis);
+}
+function tickBandits(dis){
+  const avgUnrest=W.settlements.reduce((t,s)=>t+s.unrest,0)/W.settlements.length;
+  if(W.banditCamps.length<3&&chance('sim',(0.0012+avgUnrest*0.00006+(W.war?0.002:0))*MOD.bandit)){
+    // camp in forest far from settlements
+    for(let t=0;t<40;t++){
+      const cx=randi('sim',GRID),cz=randi('sim',GRID),i=cIdx(cx,cz);
+      if(W.biome[i]!==B.FOREST&&W.biome[i]!==B.PINE)continue;
+      const x=cellX(cx),z=cellZ(cz);
+      if(W.settlements.some(s=>dist2d(x,z,s.pos.x,s.pos.z)<700))continue;
+      const camp={x,z,raids:0,king:null,born:day()};
+      W.banditCamps.push(camp);
+      const g=campGroup(0x4a4038);g.position.set(x,hAt(x,z),z);
+      g.traverse(o=>o.userData.pick={type:'camp',camp});
+      scene.add(g);G.campMeshes.set(camp,g);
+      emit('fates',5,{x,z},`Masterless men gather in the ${W.biome[i]===B.PINE?'pine uplands':'greenwood'}; travellers speak of a robber camp near ${nearestPlaceName(x,z)}.`);
+      break;
+    }
+  }
+  for(const camp of[...W.banditCamps]){
+    // outlaws drift away if the pickings are thin
+    if(day()-camp.born>900&&camp.raids<2){
+      const g=G.campMeshes.get(camp);if(g)scene.remove(g);G.campMeshes.delete(camp);
+      W.banditCamps=W.banditCamps.filter(x=>x!==camp);
+      continue;
+    }
+    // ambush caravans passing near (position computed in sim time, not render time)
+    for(const c of W.caravans){
+      if(c.sea||c.robbed)continue;
+      const f=(day()-c.departDay)/Math.max(0.01,c.arriveDay-c.departDay);
+      const p=polyPos(c.poly,f);
+      if(!p)continue;
+      if(dist2d(camp.x,camp.z,p.x,p.z)<320&&chance('sim',0.12*MOD.bandit)){
+        c.robbed=true;camp.raids++;camp.loot=(camp.loot||0)+c.value;
+        emit('fates',5,{x:p.x,z:p.z},`Bandits fall upon a caravan on the ${W.settlements[c.origin].name} road! The mules are driven off and the goods lost.`);
+        W.settlements[c.dest].prosperity=clamp(W.settlements[c.dest].prosperity-1,1,100);
+      }
+    }
+    if(camp.raids>=3&&!camp.king&&chance('sim',0.01)){
+      camp.king=personName('m')+' '+pick('sim',['the Red','Hooksword','of the Hollow','Half-hanged','the Quiet']);
+      const n=mkNotable({name:camp.king,sex:'m',age:30,birthDay:day()-30*360,house:0,role:'Bandit King',traits:['bold','cruel'],agenda:'reigns over the greenwood'});
+      camp.kingId=n.id;
+      emit('fates',6,camp,`The outlaws have crowned a king of thieves: men whisper the name ${camp.king}.`);
+    }
+    // crown response: bounty patrol
+    if(camp.raids>=2&&!camp.patrol&&W.treasury>400&&chance('sim',0.02)){
+      camp.patrol=true;W.treasury-=200;
+      camp.patrolArrive=day()+dist2d(camp.x,camp.z,W.capital.pos.x,W.capital.pos.z)/700;
+      emit('war',4,W.capital.pos,`The crown posts a bounty and sends riders against the outlaws of ${nearestPlaceName(camp.x,camp.z)}.`);
+    }
+    if(camp.patrol&&day()>=camp.patrolArrive){
+      if(chance('sim',camp.king?0.45:0.75)){
+        const g=G.campMeshes.get(camp);if(g)scene.remove(g);G.campMeshes.delete(camp);
+        W.banditCamps=W.banditCamps.filter(x=>x!==camp);
+        if(camp.kingId){const bk=notableById(camp.kingId);if(bk)killNotable(bk,'hanged at the crossroads',true);}
+        emit('war',5,camp,`The bandit camp near ${nearestPlaceName(camp.x,camp.z)} is burned and its brigands ${camp.king?'scattered — '+camp.king+' swings at the crossroads':'hanged in a row'}.`);
+        W.legitimacy=clamp(W.legitimacy+2,0,100);
+      }else{
+        camp.patrol=false;camp.raids++;
+        emit('war',5,camp,`The crown’s riders are ambushed in the deep wood and driven off; the outlaws grow bolder.`);
+      }
+    }
+  }
+}
+function tickDragon(){
+  const d=W.dragon;
+  if(d.dead){
+    if(!d.rebornAt)d.rebornAt=day()+38*360+randi('sim',10*360);
+    if(day()>=d.rebornAt){
+      W.dragon={name:pick('sim',NAMEB.dragon),lair:d.lair,state:'sleeping',hoard:500,pos:null,path:null,
+        target:null,mood:'newly come',wakes:0};
+      emit('fates',7,{x:d.lair.x,z:d.lair.z},`Shepherds swear that a shadow crossed the moon, and that something has taken up the old lair on the high peak. The elders name it ${W.dragon.name}.`);
+    }
+    return;
+  }
+  if(d.state==='sleeping'){
+    d.mood=W.treasury>8000?'dreaming of gold':'slumbering';
+    if(day()>(d.peaceUntil||0)&&chance('sim',clamp(W.treasury/30000,0,1)*0.0035*mythMult())){
+      d.state='raiding';d.wakes++;
+      const tgt=[...W.settlements].sort((a,b)=>b.prosperity*b.pop-a.prosperity*a.pop)[0];
+      d.target=tgt;
+      const L=d.lair;
+      d.path=[{x:L.x,z:L.z,y:L.y+120},{x:(L.x+tgt.pos.x)/2,z:(L.z+tgt.pos.z)/2,y:500},{x:tgt.pos.x,z:tgt.pos.z,y:tgt.pos.y+60}];
+      d.departDay=day();d.arriveDay=day()+dist2d(L.x,L.z,tgt.pos.x,tgt.pos.z)/3000;
+      d.mood='wrathful';
+      emit('fates',10,{x:L.x,z:L.z},`${d.name} has woken! The dragon lifts from the high peak on wings like storm-cloud, and turns toward ${tgt.name}.`);
+    }
+  }else if(d.state==='raiding'&&day()>=d.arriveDay){
+    const t=d.target;
+    igniteFire(t,3,'dragon');
+    const stolen=Math.max(0,W.treasury*0.3);
+    W.treasury-=stolen;d.hoard+=stolen;
+    t.unrest=clamp(t.unrest+18,0,100);
+    W.legitimacy=clamp(W.legitimacy-8,0,100);
+    emit('fates',10,t.pos,`${d.name} descends upon ${t.name} in fire! A district burns, and the wyrm flies home heavy with ${Math.round(stolen)} in gold.`);
+    d.state='returning';
+    d.path=[{x:t.pos.x,z:t.pos.z,y:t.pos.y+80},{x:d.lair.x,z:d.lair.z,y:d.lair.y+120}];
+    d.departDay=day();d.arriveDay=day()+dist2d(t.pos.x,t.pos.z,d.lair.x,d.lair.z)/3000;
+  }else if(d.state==='returning'&&day()>=d.arriveDay){
+    d.state='sleeping';d.mood='sated';
+    // the crown responds, per the monarch's valor
+    const m=W.monarch;
+    if(m&&m.alive&&ageOf(m)>=16){
+      if(m.traits.includes('bold')||(!m.traits.includes('craven')&&chance('sim',0.5))){
+        d.slayAt=day()+25;d.slayer=m.id;
+        emit('crown',8,W.capital.pos,`${fullTitle(m)} swears before the court to slay the wyrm, and calls for volunteers of good courage.`);
+      }else{
+        const tribute=W.treasury*0.2;
+        W.treasury-=tribute;d.hoard+=tribute;d.peaceUntil=day()+1800;
+        W.legitimacy=clamp(W.legitimacy-6,0,100);
+        emit('crown',7,W.capital.pos,`${fullTitle(m)} sends tribute of ${Math.round(tribute)} gold to the dragon's peak, buying an uneasy peace. The smallfolk grumble at the cost.`);
+      }
+    }
+  }
+  if(d.slayAt&&day()>=d.slayAt){
+    const m=notableById(d.slayer);d.slayAt=null;
+    if(m&&m.alive){
+      if(chance('sim',0.45)){
+        d.dead=true;d.state='dead';d.mood='slain';
+        W.treasury+=d.hoard;W.legitimacy=clamp(W.legitimacy+25,0,100);
+        m.epithet='the Dragonslayer';
+        emit('crown',10,{x:d.lair.x,z:d.lair.z},`Wonder of the age! ${fullTitle(m)} has slain ${d.name} upon the high peak. The hoard — ${Math.round(d.hoard)} in old gold — is carried down by torchlight.`,{festival:true});
+      }else{
+        emit('fates',10,{x:d.lair.x,z:d.lair.z},`Woe! ${fullTitle(m)} is burned upon the mountainside by ${d.name}, and the host returns bearing only a scorched shield.`);
+        killNotable(m,'in dragonfire upon the peak',true);
+        d.peaceUntil=day()+900;
+      }
+    }
+  }
+}
+function tickOmens(myth,dis){
+  if(myth<1)return;
+  // comet
+  if(!W.comet&&chance('sim',0.0006*dis)){
+    W.comet={start:day(),until:day()+12,teeth:myth>=2};
+    if(myth>=2)W.comet.until=day()+360;
+    emit('fates',6,W.capital.pos,`A comet burns in the ${pick('sim',['northern','western','evening'])} sky, trailing fire. ${myth>=2?'The wise are afraid: such stars rain ruin on the year beneath them.':'Some say it foretells the death of princes; others, a good vintage.'}`);
+    W.settlements.forEach(s=>s.unrest=clamp(s.unrest+4,0,100));
+    if(myth>=2&&!W.prophet){
+      const p=mkNotable({name:personName(chance('sim',0.5)?'m':'f'),sex:'m',age:40,birthDay:day()-40*360,house:0,role:'Prophet',traits:['pious','bold'],agenda:'cries doom in the market squares'});
+      W.prophet=p.id;
+      emit('fates',5,W.capital.pos,`A ragged prophet appears at the gates of ${W.capital.name}, crying that the comet is a sword unsheathed.`);
+    }
+  }
+  if(W.comet&&day()>W.comet.until)W.comet=null;
+  // eclipse
+  if(W.eclipse<=0&&chance('sim',0.00025*dis)){
+    W.eclipse=1.2;
+    emit('fates',6,W.capital.pos,`At midday the sun is eaten and a cold dusk falls. Birds go to roost; men fall to their knees in the fields.`);
+    W.settlements.forEach(s=>s.unrest=clamp(s.unrest+(myth>=2?7:3),0,100));
+  }
+  // small omens
+  if(chance('sim',0.0004*dis)){
+    const s=pick('sim',W.settlements);
+    emit('fates',3,s.pos,pick('sim',[
+      `A calf with two heads is born near ${s.name}; the priests dispute its meaning.`,
+      `The moon rises red as a wound over ${s.name}.`,
+      `Fish rain upon the fields outside ${s.name}, to the wonder of all.`,
+      `A white hart is seen at dusk by the walls of ${s.name}, and vanishes.`]));
+    if(myth>=2)s.unrest=clamp(s.unrest+3,0,100);
+  }
+}
+
+/* ============================ GROWTH ===================================== */
+function tickGrowth(){
+  if(day()%6!==0)return;
+  for(const s of W.settlements){
+    const cap=s.buildings.filter(b=>b.state==='sound').length*6+30;
+    if(s.pop>cap&&s.prosperity>42&&!s.siegeBy){
+      const b=addBuildingLive(s);
+      if(b&&chance('sim',0.06))
+        emit('trade',3,s.pos,`${s.name} grows: new roofs rise in the ${b.district} quarter.`);
+    }else if(s.pop<cap*0.35&&chance('sim',0.1)){
+      const b=s.buildings.filter(b=>b.state==='sound'&&b.district==='residential').pop();
+      if(b){b.state='ruin';b.rebuildT=day()+400;s.ruinCount++;updateBuildingInstance(b);}
+    }
+  }
+}
+
+/* ============================ ACTS (triggers) ============================ */
+function doAct(act,p){
+  const nearS=()=>{let b=W.settlements[0],bd=1e18;for(const s of W.settlements){const d=dist2d(p.x,p.z,s.pos.x,s.pos.z);if(d<bd){bd=d;b=s;}}return b;};
+  switch(act){
+    case 'plague':{const s=nearS();s.infected=Math.max(s.infected,6);
+      emit('fates',7,s.pos,`A pestilence breaks out in ${s.name}; the first houses are marked with white crosses.`);break;}
+    case 'fire':{const s=nearS();if(igniteFire(s,2,'act'))emit('fates',6,s.pos,`Fire! Flames leap up in ${s.name}.`);break;}
+    case 'flood':{W.snowpack=90;W.flooding=8;
+      for(const s of W.settlements)if(s.river){s.prosperity=clamp(s.prosperity-8,1,100);
+        emit('fates',7,s.pos,`The river rises in spate and drowns the low streets of ${s.name}.`);}break;}
+    case 'drought':{W.drought=true;lastSeasonKey='';
+      emit('fates',7,W.capital.pos,`The sky turns to brass: drought settles on the realm.`);break;}
+    case 'quake':{cam.shake=26;let n=0;
+      for(const s of W.settlements){if(dist2d(p.x,p.z,s.pos.x,s.pos.z)>1100)continue;
+        for(const b of s.buildings)if(b.state==='sound'&&chance('sim',0.07)){b.state='ruin';b.rebuildT=day()+240;s.ruinCount++;updateBuildingInstance(b);n++;}
+        if(chance('sim',0.5))igniteFire(s,1,'quake');}
+      emit('fates',9,p,`The earth heaves${n?' and '+n+' buildings fall':''}; a long groan runs through the hills.`);break;}
+    case 'dragon':{if(W.dragon&&!W.dragon.dead){W.dragon.peaceUntil=0;W.treasury=Math.max(W.treasury,9000);
+      const d=W.dragon;d.state='sleeping';/* will wake next ticks */
+      d.forceWake=true;emit('fates',6,{x:d.lair.x,z:d.lair.z},`Something stirs on the high peak; shepherds drive their flocks down before nightfall.`);}break;}
+    case 'bandits':{const camp={x:p.x,z:p.z,raids:0,king:null,born:day()};W.banditCamps.push(camp);
+      const g=campGroup(0x4a4038);g.position.set(p.x,hAt(p.x,p.z),p.z);
+      g.traverse(o=>o.userData.pick={type:'camp',camp});
+      scene.add(g);G.campMeshes.set(camp,g);
+      emit('fates',5,p,`Outlaws raise a camp near ${nearestPlaceName(p.x,p.z)}.`);break;}
+    case 'assassinate':{const m=W.monarch;if(m&&m.alive){
+      emit('crown',10,W.capital.pos,`Murder in the court! ${fullTitle(m)} is slain by a hired knife${pick('sim',[' at the feast',' upon the stair',' at prayer'])}. The realm holds its breath.`);
+      W.legitimacy=clamp(W.legitimacy-15,0,100);
+      W.settlements.forEach(s=>s.unrest=clamp(s.unrest+12,0,100));
+      killNotable(m,'by an assassin’s blade',true);}break;}
+    case 'contest':{if(!W.war){const c=W.houses.map((h,i)=>i).filter(i=>i>0&&!W.houses[i].exiled);
+      if(c.length){const hi=c.sort((a,b)=>W.houses[a].loyalty-W.houses[b].loyalty)[0];
+        W.houses[hi].loyalty=Math.min(W.houses[hi].loyalty,25);W.truceUntil=0;
+        startWar(hi,'contests the succession');}}break;}
+    case 'marriage':{const single=W.notables.filter(n=>n.alive&&!n.spouse&&ageOf(n)>=17&&ageOf(n)<=45);
+      const a=single.find(n=>n.house===0)||single[0];
+      const b=single.find(n=>n&&a&&n!==a&&n.sex!==a.sex&&n.house!==a.house);
+      if(a&&b){a.spouse=b.id;b.spouse=a.id;
+        const oh=W.houses[a.house===0?b.house:a.house];if(oh)oh.loyalty=clamp(oh.loyalty+12,0,100);
+        W.capital.festivalUntil=day()+3;
+        emit('crown',6,W.capital.pos,`A royal match is arranged: ${fullTitle(a)} weds ${fullTitle(b)}. ${W.capital.name} feasts beneath bright banners.`,{festival:true});}break;}
+    case 'bless':{for(const s of W.settlements)s.stores.grain+=s.pop*0.35;W.drought=false;lastSeasonKey='';
+      emit('trade',4,W.capital.pos,`The season turns kind beyond all memory: granaries groan and the price of bread falls to nothing.`);break;}
+    case 'comet':{W.comet={start:day(),until:day()+(MOD.myth>=2?360:12),teeth:MOD.myth>=2};
+      emit('fates',6,W.capital.pos,`A great comet unfurls across the heavens, bright enough to read by.`);break;}
+    case 'village':{const ci=toCell(p.x),cj=toCell(p.z);
+      if(W.water[cIdx(ci,cj)]||slopeAt(ci,cj)>0.25){emit('trade',2,p,'The surveyors find no good ground here.');break;}
+      const s={name:placeName(),kind:'village',pos:{x:p.x,z:p.z,y:hAt(p.x,p.z)},cx:ci,cz:cj,pop:60,
+        prosperity:45,unrest:5,walls:0,stores:{grain:60,fish:5,timber:30,ore:5,tools:8,cloth:4,wine:2},
+        harbor:false,river:false,owner:0,buildings:[],garrison:4,infected:0,recovered:0,plagueDead:0,
+        fires:[],ruinCount:0,pyres:false,festivalUntil:0,siegeBy:null,revolted:false,growthClock:0,lastRaid:-999,radius:90,
+        res:{farm:6,forest:2,ore:0,fish:0}};
+      W.settlements.push(s);
+      const si=W.settlements.length-1;W.adj[si]=[];
+      let bj=0,bd=1e18;W.settlements.forEach((o,oi)=>{if(oi!==si){const d=dist2d(p.x,p.z,o.pos.x,o.pos.z);if(d<bd){bd=d;bj=oi;}}});
+      const path=[{x:p.x,z:p.z},{x:W.settlements[bj].pos.x,z:W.settlements[bj].pos.z}];
+      W.roads.push({a:si,b:bj,path,len:bd});W.routes={};
+      W.adj[si].push({to:bj,ri:W.roads.length-1});W.adj[bj].push({to:si,ri:W.roads.length-1});
+      for(let i=0;i<10;i++)addBuildingLive(s);
+      const sp=makeTextSprite(s.name,1.6);sp.position.set(p.x,s.pos.y+90,p.z);scene.add(sp);G.labels.push(sp);
+      const m=new THREE.Mesh(new THREE.SphereGeometry(60,8,6),new THREE.MeshBasicMaterial({visible:false}));
+      m.position.set(p.x,s.pos.y+18,p.z);m.userData.pick={type:'settlement',s};scene.add(m);G.pickS.push(m);
+      emit('trade',6,p,`By charter of the crown a village is founded at ${s.name}; the first furrows are cut before the frost.`);break;}
+    case 'gold':{W.treasury+=5000;
+      emit('crown',3,W.capital.pos,`A forgotten vault beneath the keep yields 5,000 in old coin. The Master of Coin is beside himself.`);break;}
+    case 'raze':{let bb=null,bd=1e18;
+      for(const s of W.settlements)for(const b of s.buildings){const d=dist2d(p.x,p.z,b.x,b.z);if(d<bd&&b.state==='sound'){bd=d;bb=b;}}
+      if(bb&&bd<80){bb.state='ruin';bb.rebuildT=day()+300;bb.s.ruinCount++;updateBuildingInstance(bb);
+        emit('fates',2,p,`A ${ARCH[bb.arch][4]} in ${bb.s.name} is pulled down by order of the crown.`);}break;}
+  }
+}
+
+/* ============================ MASTER TICK ================================ */
+function simTick(){
+  W.clock.day++;
+  tickWeather();
+  tickEconomy();
+  tickPopulation();
+  tickPolitics();
+  tickMilitary();
+  tickThreats();
+  tickGrowth();
+  if(W.dragon&&W.dragon.forceWake&&W.dragon.state==='sleeping'){W.dragon.forceWake=false;
+    W.dragon.peaceUntil=0;
+    // force immediate wake
+    const d=W.dragon,tgt=[...W.settlements].sort((a,b)=>b.prosperity*b.pop-a.prosperity*a.pop)[0];
+    d.state='raiding';d.wakes++;d.target=tgt;d.mood='wrathful';
+    d.path=[{x:d.lair.x,z:d.lair.z,y:d.lair.y+120},{x:(d.lair.x+tgt.pos.x)/2,z:(d.lair.z+tgt.pos.z)/2,y:500},{x:tgt.pos.x,z:tgt.pos.z,y:tgt.pos.y+60}];
+    d.departDay=day();d.arriveDay=day()+dist2d(d.lair.x,d.lair.z,tgt.pos.x,tgt.pos.z)/3000;
+    emit('fates',10,{x:d.lair.x,z:d.lair.z},`${d.name} has woken! The dragon rises from the peak and turns toward ${tgt.name}.`);
+  }
+}
+/* =========================================================================
+   CHRONICLE — the product. Dated entries in annalist voice; click to fly.
+   ========================================================================= */
+const chronList=()=>document.getElementById('chronlist');
+let chronFilter='all', allLines=[], entryCount=0;
+const CATMAP={crown:'crown',war:'war',trade:'trade',fates:'fates'};
+function emit(cat,pri,pos,text,opts){
+  const ev={day:day(),cat,pri,pos:pos?{x:pos.x,z:pos.z}:null,text,opts:opts||{}};
+  chronicleAdd(ev);
+  director.push(ev);
+  return ev;
+}
+function chronicleAdd(ev){
+  allLines.push('['+dateStr(ev.day)+'] '+ev.text);
+  const el=document.createElement('div');
+  el.className='centry';el.dataset.cat=ev.cat;
+  el.innerHTML='<span class="cd">'+dateStr(ev.day)+'.</span> '+ev.text.replace(/</g,'&lt;');
+  if(ev.pos)el.addEventListener('click',()=>{flyTo(ev.pos.x,ev.pos.z,420);markManual();});
+  if(chronFilter!=='all'&&ev.cat!==chronFilter)el.style.display='none';
+  const list=chronList();
+  const stick=list.scrollTop+list.clientHeight>list.scrollHeight-60;
+  list.appendChild(el);
+  entryCount++;
+  while(list.children.length>260)list.removeChild(list.firstChild);
+  if(stick)list.scrollTop=list.scrollHeight;
+}
+function reignHeader(n){
+  const num=W.reignNum[n.name]||1;
+  const ORD=['first','second','third','fourth','fifth','sixth','seventh','eighth','ninth'];
+  const t=`Here begin the years of ${n.sex==='f'?'Queen':'King'} ${n.name}${num>1?', '+(ORD[num-1]||num+'th')+' of that name':''}.`;
+  allLines.push('\n=== '+t+' ===\n');
+  const el=document.createElement('div');el.className='creign';el.textContent=t;
+  chronList().appendChild(el);
+  chronList().scrollTop=chronList().scrollHeight;
+  document.getElementById('crownname').textContent=fullTitle(W.monarch);
+}
+
+/* =========================================================================
+   AUTO-DIRECTOR — flies the camera to the story
+   ========================================================================= */
+const director={queue:[],shot:null,shotUntil:0,cool:{},idleUntil:0,idleTarget:null,
+  push(ev){
+    if(ev.pri<3||!ev.pos)return;
+    this.queue.push({ev,born:perfNow()});
+    if(this.queue.length>12)this.queue.sort((a,b)=>b.ev.pri-a.ev.pri).length=12;
+  },
+  update(now,dt){
+    if(cam.mode!=='director'&&!document.body.classList.contains('watch'))return;
+    if(now<cam.manualUntil)return;
+    // expire stale
+    this.queue=this.queue.filter(q=>now-q.born<50&&(!this.shot||q.ev!==this.shot.ev));
+    // pick a beat
+    let best=null;
+    for(const q of this.queue){
+      const cd=this.cool[q.ev.cat+q.ev.pri]||0;
+      if(now<cd&&q.ev.pri<9)continue;
+      if(!best||q.ev.pri>best.ev.pri)best=q;
+    }
+    const curPri=this.shot?this.shot.ev.pri:-1;
+    if(best&&(now>=this.shotUntil||best.ev.pri>curPri+1)){
+      this.queue=this.queue.filter(q=>q!==best);
+      this.beginShot(best.ev,now);
+    }else if(!this.shot||now>=this.shotUntil){
+      this.shot=null;
+      hideBeat();
+      // idle: golden-hour establishing orbits (Math.random — must not touch the sim stream)
+      if(now>=this.idleUntil){
+        this.idleUntil=now+22;
+        const s=W.settlements[Math.floor(Math.random()*W.settlements.length)];
+        flyTo(s.pos.x,s.pos.z,700+Math.random()*1400,Math.random()*Math.PI*2);
+      }
+      cam.yaw+=dt*0.03;
+    }
+    if(this.shot){
+      const sh=this.shot;
+      cam.yaw+=dt*sh.orbit;
+      const t=now-sh.start;
+      if(t>3&&sh.push&&cam.dist>sh.push)cam.dist=Math.max(sh.push,cam.dist*Math.pow(0.9,dt*60));
+      if(sh.follow&&!cam.follow){cam.follow=sh.follow;}
+    }
+  },
+  beginShot(ev,now){
+    const hold=ev.pri>=9?18:ev.pri>=7?14:10;
+    this.shot={ev,start:now,orbit:0.05,push:null,follow:null};
+    this.shotUntil=now+hold;
+    this.cool[ev.cat+ev.pri]=now+45;
+    cam.follow=null;
+    let d=500;
+    if(ev.opts.follow)this.shot.follow=ev.opts.follow;
+    if(ev.cat==='war'){d=800;this.shot.push=380;this.shot.orbit=0.08;}
+    else if(ev.cat==='fates'&&ev.pri>=9){d=900;this.shot.push=420;}
+    else if(ev.cat==='fates'){d=600;this.shot.push=320;}
+    else if(ev.opts.festival){d=420;this.shot.orbit=0.12;}
+    else if(ev.cat==='crown'){d=520;this.shot.push=300;}
+    else if(ev.cat==='trade'){d=600;}
+    if(W.dragon&&W.dragon.state==='raiding'&&ev.pri===10&&ev.cat==='fates'){this.shot.follow=W.dragon;}
+    flyTo(ev.pos.x,ev.pos.z,d,cam.yaw+0.6);
+    showBeat(ev);
+  }
+};
+function showBeat(ev){
+  document.getElementById('beattext').textContent=ev.text;
+  document.getElementById('beatdate').textContent=dateStr(ev.day);
+  document.getElementById('beat').style.display='block';
+}
+function hideBeat(){document.getElementById('beat').style.display='none';}
+function toggleWatch(){
+  const on=document.body.classList.toggle('watch');
+  if(on){cam.mode='director';cam.manualUntil=0;}
+  else{cam.mode='free';hideBeat();}
+}
+
+/* =========================================================================
+   CONTROL PANEL & HUD
+   ========================================================================= */
+function setSpeed(i){
+  if(speedIdx!==0)lastSpeed=speedIdx;
+  speedIdx=i;
+  document.querySelectorAll('#timec button').forEach(b=>b.classList.toggle('on',+b.dataset.s===i));
+}
+const RATES=[
+  ['harvest','Harvest yield',0.25,4,1],['birth','Birth rate',0.25,4,1],['mort','Mortality',0.25,4,1],
+  ['trade','Trade volume',0.25,4,1],['tax','Tax rate %',5,30,12],['vir','Plague virulence',0.25,4,1],
+  ['leth','Plague lethality',0.25,4,1],['disaster','Disaster frequency',0.25,4,1],
+  ['bandit','Bandit activity',0.25,4,1],['aggr','House aggression',0.25,4,1],['fert','Royal fertility',0.25,4,1]
+];
+const ACTS=[
+  ['plague','Unleash plague',1],['fire','Start a great fire',1],['flood','Flood the river',0],
+  ['drought','Declare a drought',0],['quake','Earthquake',1],['dragon','Wake the dragon',0],
+  ['bandits','Raise a bandit camp',1],['assassinate','Assassinate the monarch',0],
+  ['contest','Contest the succession',0],['marriage','Arrange a royal marriage',0],
+  ['bless','Bless the harvest',0],['comet','Send a comet',0],['village','Found a village',1],
+  ['gold','Grant 5,000 gold',0],['raze','Raze building',1]
+];
+const OVERLAYS=[['territory','Territories'],['trade','Trade'],['prosperity','Prosperity'],['plague','Plague'],['unrest','Unrest']];
+function buildDrawer(tab){
+  const body=document.getElementById('dbody');
+  body.innerHTML='';
+  if(tab==='rates'){
+    for(const[key,label,min,max,def]of RATES){
+      const row=document.createElement('div');row.className='slrow';
+      row.innerHTML=`<label><span>${label}</span><b id="rv_${key}">${MOD[key]}</b></label>`;
+      const inp=document.createElement('input');inp.type='range';
+      inp.min=min;inp.max=max;inp.step=(max-min)/100;inp.value=MOD[key];
+      inp.addEventListener('input',()=>{MOD[key]=+inp.value;
+        document.getElementById('rv_'+key).textContent=key==='tax'?Math.round(MOD[key])+'%':('×'+(+inp.value).toFixed(2));});
+      row.appendChild(inp);body.appendChild(row);
+      document.getElementById('rv_'+key).textContent=key==='tax'?Math.round(MOD[key])+'%':('×'+(+MOD[key]).toFixed(2));
+    }
+    const mr=document.createElement('div');mr.className='slrow';
+    mr.innerHTML=`<label><span>Myth</span><b id="rv_myth">${['Off','Low','High'][MOD.myth]}</b></label>`;
+    const mi=document.createElement('input');mi.type='range';mi.min=0;mi.max=2;mi.step=1;mi.value=MOD.myth;
+    mi.addEventListener('input',()=>{MOD.myth=+mi.value;document.getElementById('rv_myth').textContent=['Off','Low','High'][MOD.myth];});
+    mr.appendChild(mi);body.appendChild(mr);
+  }else if(tab==='acts'){
+    for(const[key,label,place]of ACTS){
+      const b=document.createElement('button');b.className='actbtn';
+      b.innerHTML=label+(place?'<span class="tg">⌖</span>':'');
+      b.addEventListener('click',()=>{
+        if(place)setPlaceMode(key);
+        else doAct(key,{x:W.capital.pos.x,z:W.capital.pos.z});
+      });
+      body.appendChild(b);
+    }
+  }else if(tab==='over'){
+    for(const[key,label]of OVERLAYS){
+      const b=document.createElement('button');b.className='ovbtn'+(overlayMode===key?' on':'');
+      b.dataset.o=key;b.textContent=label;
+      b.addEventListener('click',()=>setOverlay(key));
+      body.appendChild(b);
+    }
+  }else if(tab==='world'){
+    body.innerHTML=`
+      <div class="wrow">Seed<br><input type="text" id="seedin" value="${SEED}"></div>
+      <button class="wbtn" id="btnreforge">Reforge the realm</button>
+      <button class="wbtn" id="btnlabels">Toggle labels</button>
+      <button class="wbtn" id="btnwatch">Watch mode (C)</button>
+      <div class="dhead">The Great Houses</div><div id="housepanel"></div>
+      <div class="dhead">Line of Succession</div><div id="succpanel"></div>`;
+    document.getElementById('btnreforge').addEventListener('click',()=>{
+      const v=parseInt(document.getElementById('seedin').value,10);
+      location.hash='#s='+((isNaN(v)?Math.floor(Math.random()*1e9):v)>>>0);
+      location.reload();
+    });
+    document.getElementById('btnlabels').addEventListener('click',()=>{G.labelsOn=!G.labelsOn;});
+    document.getElementById('btnwatch').addEventListener('click',toggleWatch);
+    refreshHousePanel();
+  }
+}
+function refreshHousePanel(){
+  const hp=document.getElementById('housepanel');if(!hp)return;
+  let h='';
+  W.houses.forEach((house,hi)=>{
+    if(hi===0)return;
+    h+=`<div class="houserow${house.exiled?' exiled':''}"><img src="${sigURL(hi)}">
+      <span class="hname" style="flex:0 0 92px;overflow:hidden;white-space:nowrap;">${house.name.replace('House ','')}</span>
+      <div class="hbar"><div style="width:${house.exiled?0:Math.round(house.loyalty)}%"></div></div></div>`;
+  });
+  hp.innerHTML=h;
+  const sp=document.getElementById('succpanel');
+  if(sp){
+    const m=W.monarch;let s='';
+    if(m){
+      const heirs=m.heirs.map(notableById).filter(n=>n&&n.alive).sort((a,b)=>b.age-a.age);
+      if(heirs.length)heirs.slice(0,4).forEach((n,i)=>{s+=`<div class="succline">${i+1}. ${fullTitle(n)}, age ${n.age??ageOf(n)}</div>`;});
+      else s='<div class="succline" style="color:var(--red)">No heir of the body — the succession is uncertain.</div>';
+    }
+    sp.innerHTML=s;
+  }
+}
+function initUI(){
+  document.getElementById('chrontitle').textContent='The Annals of '+W.name;
+  document.getElementById('loadtitle').textContent='The Annals of '+W.name;
+  document.title='The Annals of '+W.name;
+  document.getElementById('crownsig').src=sigURL(0);
+  document.getElementById('crownname').textContent=fullTitle(W.monarch);
+  document.querySelectorAll('#timec button').forEach(b=>b.addEventListener('click',()=>setSpeed(+b.dataset.s)));
+  document.querySelectorAll('#dtabs .t').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('#dtabs .t').forEach(x=>x.classList.toggle('on',x===t));
+    buildDrawer(t.dataset.t);
+  }));
+  buildDrawer('rates');
+  document.getElementById('drawertoggle').addEventListener('click',()=>{
+    const d=document.getElementById('drawer');d.classList.toggle('closed');
+    document.getElementById('drawertoggle').textContent=d.classList.contains('closed')?'▸':'◂';
+  });
+  document.querySelectorAll('#chronfilters .f').forEach(f=>f.addEventListener('click',()=>{
+    document.querySelectorAll('#chronfilters .f').forEach(x=>x.classList.toggle('on',x===f));
+    chronFilter=f.dataset.f;
+    document.querySelectorAll('.centry').forEach(e=>{e.style.display=(chronFilter==='all'||e.dataset.cat===chronFilter)?'':'none';});
+  }));
+  document.getElementById('btnexport').addEventListener('click',()=>{
+    const head=`THE ANNALS OF ${W.name.toUpperCase()}\nset down by the chroniclers · seed ${SEED}\n\n`;
+    const blob=new Blob([head+allLines.join('\n')],{type:'text/plain'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='annals-of-'+W.name.toLowerCase()+'.txt';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  });
+  document.getElementById('btnshare').addEventListener('click',()=>{
+    const url=location.origin+location.pathname+'#s='+SEED;
+    (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(
+      ()=>{document.getElementById('btnshare').textContent='Copied!';setTimeout(()=>document.getElementById('btnshare').textContent='Copy share link',1400);},
+      ()=>prompt('Share this realm:',url));
+  });
+  document.getElementById('inspx').addEventListener('click',hideInspect);
+  G.labelsOn=true;
+  setInterval(()=>{if(document.getElementById('housepanel'))refreshHousePanel();},4000);
+}
+function updateHUD(){
+  document.getElementById('datechip').textContent=SEASONGLYPH[seasonIdx()]+' '+dateStr();
+  document.getElementById('watchdate').textContent=dateStr();
+  const wx={clear:'☀',overcast:'☁',rain:'🌧',storm:'⛈',snow:'❄'};
+  document.getElementById('wxchip').textContent=(wx[W.weather.state]||'☀')+(W.drought?' drought':'')+(W.plagueActive?' ☠':'');
+  document.getElementById('treasury').textContent=Math.round(W.treasury).toLocaleString();
+  document.getElementById('realmpop').textContent=Math.round(W.settlements.reduce((t,s)=>t+s.pop,0)).toLocaleString();
+  document.getElementById('legit').textContent=Math.round(W.legitimacy);
+  if(W.monarch)document.getElementById('crownname').textContent=fullTitle(W.monarch);
+}
+
+/* =========================================================================
+   PER-FRAME WORLD ANIMATION
+   ========================================================================= */
+function polyPos(poly,f){
+  if(!poly||!poly.length)return null;
+  if(poly.length===1)return{x:poly[0].x,z:poly[0].z};
+  f=clamp(f,0,1);
+  const total=poly._len||(poly._len=poly.reduce((t,p,i)=>i?t+dist2d(poly[i-1].x,poly[i-1].z,p.x,p.z):0,0));
+  let want=f*total,acc=0;
+  for(let i=1;i<poly.length;i++){
+    const seg=dist2d(poly[i-1].x,poly[i-1].z,poly[i].x,poly[i].z);
+    if(acc+seg>=want){
+      const t=seg>0?(want-acc)/seg:0;
+      return{x:lerp(poly[i-1].x,poly[i].x,t),z:lerp(poly[i-1].z,poly[i].z,t),
+        y:poly[i].y!==undefined?lerp(poly[i-1].y??poly[i].y,poly[i].y,t):undefined,
+        dir:Math.atan2(poly[i].z-poly[i-1].z,poly[i].x-poly[i-1].x)};
+    }
+    acc+=seg;
+  }
+  const last=poly[poly.length-1];
+  return{x:last.x,z:last.z,y:last.y};
+}
+let smokeIdx=0,flameIdx=0;
+function spawnSmoke(x,y,z,dark){
+  const p=G.smokeData[smokeIdx];smokeIdx=(smokeIdx+1)%G.smokeData.length;
+  p.x=x+(Math.random()-0.5)*3;p.y=y;p.z=z+(Math.random()-0.5)*3;p.vy=3+Math.random()*3;p.life=4+Math.random()*4;p.dark=dark;
+}
+function spawnFlame(x,y,z){
+  const p=G.flameData[flameIdx];flameIdx=(flameIdx+1)%G.flameData.length;
+  p.x=x+(Math.random()-0.5)*6;p.y=y+Math.random()*4;p.z=z+(Math.random()-0.5)*6;p.life=0.5+Math.random()*0.8;
+}
+function animateWorld(dt,now){
+  const dayF=(W.visT||0.38)%1;
+  const simDay=W.clock.day;
+  /* --- sun / moon / sky --- */
+  const el2=Math.sin((dayF-0.25)*2*Math.PI); // sun elevation: dawn .25, noon .5, dusk .75
+  const sunDir=new THREE.Vector3(Math.cos(dayF*Math.PI*2)*0.8,el2,Math.sin(dayF*Math.PI*2)*0.55).normalize();
+  const daylight=clamp(el2*1.6+0.1,0,1);
+  const eclipseF=W.eclipse>0?0.12:1;
+  const overcastF=(W.weather.state==='clear')?1:(W.weather.state==='overcast'?0.72:0.5);
+  G.sun.intensity=1.25*daylight*eclipseF*overcastF;
+  G.sun.position.copy(sunDir).multiplyScalar(2600).add(cam.cur.focus);
+  G.sun.target.position.copy(cam.cur.focus);
+  G.sun.castShadow=cam.cur.dist<1600&&daylight>0.05;
+  const sc=G.sun.shadow.camera,ext=clamp(cam.cur.dist*0.9,220,1200);
+  sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.updateProjectionMatrix();
+  G.hemi.intensity=0.14+0.45*daylight*eclipseF;
+  G.amb.intensity=0.16+0.12*daylight;
+  G.sunDisc.position.copy(sunDir).multiplyScalar(11800).add(camera.position);
+  G.sunDisc.visible=el2>-0.06;
+  G.moonDisc.position.copy(sunDir).multiplyScalar(-11800).add(camera.position);
+  G.moonDisc.visible=el2<0.1;
+  // sky palette
+  const night=new THREE.Color(0x0d1526),nightB=new THREE.Color(0x141c30);
+  const dayT=new THREE.Color(0x7fb2dd),dayB=new THREE.Color(0xd7e3e8);
+  const duskT=new THREE.Color(0x4a5a8a),duskB=new THREE.Color(0xe89a5a);
+  let top,bot;
+  const tw=clamp(Math.abs(el2)/0.22,0,1);
+  if(el2>0){top=duskT.clone().lerp(dayT,tw);bot=duskB.clone().lerp(dayB,tw);}
+  else{top=duskT.clone().lerp(night,tw);bot=duskB.clone().lerp(nightB,tw);}
+  if(W.weather.state!=='clear'&&el2>0){top.multiplyScalar(overcastF*0.9);bot.multiplyScalar(overcastF*0.95);}
+  if(W.eclipse>0){top.multiplyScalar(0.25);bot.multiplyScalar(0.3);}
+  G.skyU.top.value.copy(top);G.skyU.bot.value.copy(bot);
+  G.skyU.sunPos.value.copy(sunDir);
+  G.sky.position.copy(camera.position);G.stars.position.copy(camera.position); // dome follows the eye
+  scene.fog.color.copy(bot).multiplyScalar(0.96);
+  const fogBase=W.weather.state==='rain'||W.weather.state==='snow'?1400:2600;
+  const fogNear=Math.max(fogBase,cam.cur.dist*1.5); // don't wash out the map view from altitude
+  scene.fog.near=fogNear;scene.fog.far=fogNear*4.4;
+  G.stars.material.opacity=clamp(-el2*4,0,0.9);
+  // night windows & torches
+  const nightF=clamp(-el2*5,0,1);
+  G.bodies.material.emissive=G.bodies.material.emissive||new THREE.Color();
+  G.bodies.material.emissive.setRGB(0.22*nightF,0.13*nightF,0.03*nightF);
+  if(nightF>0.3){
+    let ti=0,nearest=null,nd=1e18;
+    for(const s of W.settlements){const d=dist2d(camera.position.x,camera.position.z,s.pos.x,s.pos.z);if(d<nd){nd=d;nearest=s;}}
+    if(nearest&&nd<800){
+      for(const b of nearest.buildings){
+        if(ti>=G.torches.length)break;
+        if(b.district==='market'&&b.state==='sound'){
+          const t=G.torches[ti++];t.position.set(b.x,b.y+5,b.z);t.intensity=1.4*nightF;
+        }
+      }
+    }
+    for(let i=ti;i<G.torches.length;i++)G.torches[i].intensity=0;
+  }else G.torches.forEach(t=>t.intensity=0);
+  /* --- seasons --- */
+  updateTerrainColors(seasonIdx(),(simDay%90)/90);
+  /* --- water --- */
+  if(G.rivers){G.rivers.position.y=(W.flooding>0?2.6:0)+Math.sin(now*1.7)*0.15;}
+  if(G.sea)G.sea.position.y=SEA+0.5+Math.sin(now*0.9)*0.3;
+  for(const wh of G.wheels)wh.rotation.x+=dt*1.4;
+  /* --- weather particles --- */
+  const raining=W.weather.state==='rain'||W.weather.state==='storm';
+  const snowing=W.weather.state==='snow';
+  G.rain.visible=raining;G.snow.visible=snowing;
+  if(raining||snowing){
+    const P=(raining?G.rain:G.snow).geometry.attributes.position;
+    const speed=raining?300:40;
+    for(let i=0;i<P.count;i++){
+      let y=P.getY(i)-speed*dt*(0.7+((i*13)%10)/18);
+      if(y<0)y=420+Math.random()*80;
+      P.setXYZ(i,camera.position.x+((i*127)%900)-450+(snowing?Math.sin(now+i)*14:0),
+        Math.min(y,camera.position.y+300),
+        camera.position.z+((i*311)%900)-450);
+      P.setY(i,y);
+    }
+    P.needsUpdate=true;
+  }
+  if(W.weather.state==='storm'&&Math.random()<dt*0.25){G.amb.intensity=1.6;setTimeout(()=>G.amb.intensity=0.25,90);}
+  /* --- smoke & flame --- */
+  {
+    // chimney smoke near camera, pyres, burning buildings
+    let nearest=null,nd=1e18;
+    for(const s of W.settlements){const d=dist2d(camera.position.x,camera.position.z,s.pos.x,s.pos.z);if(d<nd){nd=d;nearest=s;}}
+    if(nearest&&nd<1500&&Math.random()<dt*24){
+      const b=nearest.buildings[Math.floor(Math.random()*nearest.buildings.length)];
+      if(b&&b.state==='sound')spawnSmoke(b.x,b.y+b.h*1.6,b.z,false);
+      if(nearest.pyres&&Math.random()<0.5)spawnSmoke(nearest.pos.x+30,nearest.pos.y+6,nearest.pos.z,true);
+    }
+    for(const s of W.settlements)for(const b of s.fires){
+      if(Math.random()<dt*20){spawnFlame(b.x,b.y+3,b.z);spawnSmoke(b.x,b.y+b.h+4,b.z,true);}
+    }
+    if(W.dragon&&W.dragon.state==='raiding'&&G.dragonMesh.visible&&Math.random()<dt*10)
+      spawnSmoke(G.dragonMesh.position.x,G.dragonMesh.position.y-3,G.dragonMesh.position.z,true);
+    const sp=G.smoke.geometry.attributes.position;
+    G.smokeData.forEach((p,i)=>{
+      if(p.life>0){p.life-=dt;p.y+=p.vy*dt;p.x+=Math.cos(W.weather.wind)*dt*4;p.z+=Math.sin(W.weather.wind)*dt*4;
+        sp.setXYZ(i,p.x,p.y,p.z);}
+      else sp.setXYZ(i,0,-999,0);
+    });
+    sp.needsUpdate=true;
+    const fp=G.flames.geometry.attributes.position;
+    G.flameData.forEach((p,i)=>{
+      if(p.life>0){p.life-=dt;p.y+=dt*6;fp.setXYZ(i,p.x,p.y,p.z);}
+      else fp.setXYZ(i,0,-999,0);
+    });
+    fp.needsUpdate=true;
+  }
+  /* --- comet --- */
+  if(W.comet&&simDay<W.comet.start+12){
+    const f=(simDay-W.comet.start)/12;
+    G.comet.visible=true;
+    const a=f*Math.PI;
+    G.comet.position.set(camera.position.x-Math.cos(a)*9000,3000+Math.sin(a)*4000,camera.position.z-7000+f*3000);
+    G.comet.lookAt(G.comet.position.x+1000,G.comet.position.y+400,G.comet.position.z);
+  }else G.comet.visible=false;
+  /* --- caravans & cogs --- */
+  let ci=0,cogI=0;
+  for(const c of W.caravans){
+    const f=(simDay-c.departDay)/Math.max(0.01,c.arriveDay-c.departDay);
+    const p=polyPos(c.poly,f);
+    if(!p)continue;
+    const y=c.sea?SEA+1:hAt(p.x,p.z);
+    c._rpos={x:p.x,y:y+8,z:p.z};
+    if(!c.proxy){
+      c.proxy=new THREE.Mesh(new THREE.SphereGeometry(16,6,5),new THREE.MeshBasicMaterial({visible:false}));
+      c.proxy.userData.pick={type:'caravan',c};scene.add(c.proxy);
+    }
+    c.proxy.position.set(p.x,y+6,p.z);
+    if(c.sea){
+      if(cogI<G.cogs.length){const g=G.cogs[cogI++];g.visible=true;g.position.set(p.x,y,p.z);g.rotation.y=-(p.dir||0);}
+    }else if(ci<48){
+      setInst(G.caravans,ci++,p.x,y,p.z,-(p.dir||0),1,1,1);
+    }
+  }
+  for(let i=ci;i<48;i++)setInst(G.caravans,i,0,-500,0,0,1,1,1);
+  for(let i=cogI;i<G.cogs.length;i++)G.cogs[i].visible=false;
+  G.caravans.instanceMatrix.needsUpdate=true;
+  /* --- armies --- */
+  let si2=0;
+  for(const a of W.armies){
+    let p;
+    if(a.state==='march'||a.state==='rout'){
+      const f=(simDay-a.departDay)/Math.max(0.01,a.arriveDay-a.departDay);
+      p=polyPos(a.poly,f);
+    }
+    if(!p){const s=W.settlements[a.at];p={x:s.pos.x+(a.state==='siege'?90:20),z:s.pos.z+40,dir:0};}
+    const y=hAt(p.x,p.z);
+    a._rpos={x:p.x,y:y+10,z:p.z};
+    if(a.flag){a.flag.position.set(p.x,y+16+Math.sin(now*2+a.id)*0.6,p.z);a.flag.rotation.y=camera.rotation.y;}
+    // soldiers when near
+    const dcam=dist2d(camera.position.x,camera.position.z,p.x,p.z);
+    if(dcam<2400){
+      const n=Math.min(90,Math.max(8,Math.round(a.strength/8)));
+      const dir=p.dir||0;
+      for(let k=0;k<n&&si2<900;k++){
+        const col=k%6-2.5,row=Math.floor(k/6);
+        const ox=Math.cos(dir)*(-row*3)+Math.cos(dir+Math.PI/2)*col*2.6;
+        const oz=Math.sin(dir)*(-row*3)+Math.sin(dir+Math.PI/2)*col*2.6;
+        let jx=0,jz=0;
+        if(a.state==='battle'){jx=Math.sin(now*7+k*3)*1.4;jz=Math.cos(now*6+k*5)*1.4;}
+        const sx=p.x+ox+jx,sz=p.z+oz+jz;
+        const bob=a.state==='march'?Math.abs(Math.sin(now*8+k))*0.4:0;
+        setInst(G.soldiers,si2,sx,hAt(sx,sz)+bob,sz,-dir+Math.PI/2,1,1,1);
+        G.soldiers.setColorAt(si2,C1.setHex(W.houses[a.house].sigilHue[0]));
+        si2++;
+      }
+    }
+  }
+  for(let i=si2;i<900;i++)setInst(G.soldiers,i,0,-500,0,0,1,1,1);
+  G.soldiers.instanceMatrix.needsUpdate=true;
+  if(G.soldiers.instanceColor)G.soldiers.instanceColor.needsUpdate=true;
+  /* --- dragon --- */
+  const d=W.dragon;
+  if(d&&!d.dead){
+    if(d.state==='raiding'||d.state==='returning'){
+      const f=clamp((simDay-d.departDay)/Math.max(0.01,d.arriveDay-d.departDay),0,1);
+      const p=polyPos(d.path,f);
+      if(p){
+        G.dragonMesh.visible=true;
+        const py=p.y!==undefined?p.y:400;
+        G.dragonMesh.position.set(p.x,py,p.z);
+        G.dragonMesh.rotation.y=-(p.dir||0)+Math.PI/2;
+        d._rpos={x:p.x,y:py,z:p.z};
+        const flap=Math.sin(now*6)*0.7;
+        G.dragonWings[0].rotation.z=flap;G.dragonWings[1].rotation.z=-flap;
+      }
+    }else if(d.state==='sleeping'&&cam.cur.dist<3000&&dist2d(camera.position.x,camera.position.z,d.lair.x,d.lair.z)<2200){
+      G.dragonMesh.visible=true;
+      G.dragonMesh.position.set(d.lair.x,d.lair.y+6,d.lair.z);
+      d._rpos={x:d.lair.x,y:d.lair.y+6,z:d.lair.z};
+      G.dragonWings[0].rotation.z=1.2;G.dragonWings[1].rotation.z=-1.2;
+    }else G.dragonMesh.visible=false;
+  }else if(G.dragonMesh)G.dragonMesh.visible=false;
+  /* --- citizens (bubble band) --- */
+  {
+    let nearest=null,nd=1e18;
+    for(const s of W.settlements){const dd=dist2d(camera.position.x,camera.position.z,s.pos.x,s.pos.z);if(dd<nd){nd=dd;nearest=s;}}
+    if(nearest&&cam.cur.dist<200&&nd<nearest.radius+250){
+      if(G.citList.length===0||G.citList[0].s!==nearest){
+        G.citList=[];
+        const n=Math.min(60,Math.round(nearest.pop/12)+6);
+        for(let i=0;i<n;i++){
+          const b=nearest.buildings[Math.floor(Math.random()*nearest.buildings.length)];
+          if(!b)break;
+          G.citList.push({s:nearest,x:b.x+4,z:b.z+4,dir:Math.random()*7,t:0});
+        }
+      }
+      let k=0;
+      for(const c of G.citList){
+        c.t-=dt;
+        if(c.t<=0){c.dir=Math.random()*Math.PI*2;c.t=1+Math.random()*3;}
+        c.x+=Math.cos(c.dir)*dt*3;c.z+=Math.sin(c.dir)*dt*3;
+        const dd=dist2d(c.x,c.z,c.s.pos.x,c.s.pos.z);
+        if(dd>c.s.radius){c.dir+=Math.PI;}
+        const bob=Math.abs(Math.sin(now*6+k*2))*0.3;
+        setInst(G.citizens,k++,c.x,hAt(c.x,c.z)+bob,c.z,-c.dir+Math.PI/2,0.9,0.9,0.9);
+      }
+      for(let i=k;i<80;i++)setInst(G.citizens,i,0,-500,0,0,1,1,1);
+      G.citizens.instanceMatrix.needsUpdate=true;
+    }else if(G.citList.length){
+      G.citList=[];
+      for(let i=0;i<80;i++)setInst(G.citizens,i,0,-500,0,0,1,1,1);
+      G.citizens.instanceMatrix.needsUpdate=true;
+    }
+  }
+  /* --- birds --- */
+  for(const b of G.birds){
+    const u=b.userData;u.a+=dt*u.sp;
+    const bx=u.c.x+Math.cos(u.a)*u.r,bz=u.c.z+Math.sin(u.a)*u.r;
+    b.position.set(bx,Math.max(hAt(bx,bz)+40,u.c.y?u.c.y+u.h:u.h+hAt(bx,bz)),bz);
+    b.rotation.y=-u.a;
+  }
+  /* --- labels: fade by distance --- */
+  for(const sp of G.labels){
+    const dd=camera.position.distanceTo(sp.position);
+    const vis=G.labelsOn&&cam.cur.dist>240;
+    sp.visible=vis;
+    if(vis){
+      const sc=clamp(dd*0.0011,0.45,3.4);
+      sp.scale.set(sp.userData.w*0.42*sc,sp.userData.h*0.42*sc,1);
+      sp.material.opacity=clamp((dd-180)/300,0,1);
+    }
+  }
+  for(const bn of G.banners)bn.rotation.y=Math.sin(now*0.8)*0.3+camera.rotation.y*0.2;
+}
+
+/* =========================================================================
+   MAIN LOOP & BOOT
+   ========================================================================= */
+let simAccum=0,lastT=0,hudT=0,overlayT=0;
+function animate(t){
+  requestAnimationFrame(animate);
+  const now=t/1000;
+  let dt=Math.min(0.1,now-lastT||0.016);lastT=now;
+  // advance simulation
+  simAccum+=dt*SPEEDS[speedIdx];
+  let ticks=0;
+  while(simAccum>=1&&ticks<40){simAccum-=1;simTick();ticks++;}
+  if(simAccum>45)simAccum=45; // don't spiral if a frame stalls
+  W.clock.frac=W.clock.frac||0;
+  if(SPEEDS[speedIdx]>0)W.clock.frac=simAccum; // 0..1 within the current day
+  // cinematic sun: a full day/night cycle every ~150 real seconds while running,
+  // decoupled from sim speed so high speeds don't strobe the lighting
+  if(SPEEDS[speedIdx]>0)W.visT=(W.visT||0.38)+dt/150;
+  const displayDay=W.clock.day+clamp(W.clock.frac,0,0.999);
+  const saveDay=W.clock.day;W.clock.day=displayDay;
+  director.update(perfNow(),dt);
+  updateCamera(dt,now);
+  animateWorld(dt,now);
+  W.clock.day=saveDay;
+  hudT-=dt;
+  if(hudT<=0){hudT=0.5;updateHUD();}
+  overlayT-=dt;
+  if(overlayT<=0){overlayT=6;if(overlayMode)refreshOverlay();}
+  renderer.render(scene,camera);
+}
+async function boot(){
+  const m=location.hash.match(/s=(\d+)/);
+  const seed=m?parseInt(m[1],10)>>>0:Math.floor(Math.random()*1e9);
+  if(!m)history.replaceState(null,'','#s='+seed);
+  const line=document.getElementById('loadline'),bar=document.querySelector('#loadbar>div');
+  const progress=(txt,f)=>{line.textContent=txt;bar.style.width=Math.round(f*100)+'%';
+    return new Promise(r=>setTimeout(r,30));};
+  await progress('Forging the realm…',0.02);
+  await generateWorld(seed,progress);
+  initGraphics();
+  buildTerrain();buildTrees();buildBuildings();buildLabels();buildAgents();buildParticles();buildDynamic();
+  simInit();
+  initUI();initInput();
+  // opening entries
+  allLines.push('THE ANNALS OF '+W.name.toUpperCase());
+  const m0=W.monarch;
+  reignHeader(m0);
+  emit('crown',4,W.capital.pos,`Here begin the annals of the realm of ${W.name}, set down faithfully by the chroniclers of ${W.capital.name}.`);
+  emit('crown',3,W.capital.pos,`${fullTitle(m0)}, ${m0.traits.join(' and ')}, holds the throne at ${W.capital.name}. ${W.settlements.length-1} towns and villages owe fealty, and the five great houses keep their seats.`);
+  // camera opening: establish over capital
+  cam.focus.set(W.capital.pos.x,W.capital.pos.y,W.capital.pos.z);
+  cam.cur.focus.copy(cam.focus);
+  cam.dist=3200;cam.cur.dist=4200;cam.yaw=rand('sim')*Math.PI*2;cam.cur.yaw=cam.yaw-0.4;
+  cam.mode='director';
+  document.getElementById('loading').style.opacity='0';
+  setTimeout(()=>document.getElementById('loading').remove(),900);
+  requestAnimationFrame(animate);
+}
+boot();
+</script>
+</body>
+</html>
