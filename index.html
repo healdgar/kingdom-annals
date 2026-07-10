@@ -991,7 +991,7 @@ function colorForVertex(i,sp,snowT,seed){
     const t=clamp((h-470)/130,0,1);
     c.lerp(new THREE.Color(0xe9edf2),t*t);
   }
-  if(W.roadCells[i]&&bio!==B.WATER)c.lerp(new THREE.Color(0x8a7448),0.8); // roads read at map altitude
+  // note: road/river overlays are stamped after the blend pass so they stay crisp
   if(W.drought&&(bio===B.MEADOW||bio===B.FARM))c.lerp(new THREE.Color(0xb3a35c),0.55);
   // winter snow accumulation on flat/high ground
   if(snowT>0&&bio!==B.WATER){
@@ -1050,16 +1050,27 @@ function updateTerrainColors(si,blend){
     const c=colorForVertex(i,sp,snowT,SEED);
     buf[i*3]=c.r;buf[i*3+1]=c.g;buf[i*3+2]=c.b;
   }
-  // neighbor blend calms biome banding into painterly gradients
+  // gentle neighbor blend calms biome banding into painterly gradients
   for(let cz=0;cz<GRID;cz++)for(let cx=0;cx<GRID;cx++){
     const i=cIdx(cx,cz);
-    let r=buf[i*3]*0.44,g=buf[i*3+1]*0.44,b=buf[i*3+2]*0.44,ws=0.44;
+    let r=buf[i*3]*0.6,g=buf[i*3+1]*0.6,b=buf[i*3+2]*0.6,ws=0.6;
     for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){
       if(!inB(cx+dx,cz+dz))continue;
       const j=cIdx(cx+dx,cz+dz);
-      r+=buf[j*3]*0.14;g+=buf[j*3+1]*0.14;b+=buf[j*3+2]*0.14;ws+=0.14;
+      r+=buf[j*3]*0.1;g+=buf[j*3+1]*0.1;b+=buf[j*3+2]*0.1;ws+=0.1;
     }
     col.setXYZ(i,r/ws,g/ws,b/ws);
+  }
+  // crisp overlays AFTER the blur: rivers stay blue, roads stay packed earth
+  const riverC=new THREE.Color(0x3a6d8e).lerp(new THREE.Color(0xcfdae2),snowT>0.5?0.5:0);
+  const roadC=new THREE.Color(0x8a7448);
+  for(let i=0;i<N;i++){
+    if(W.water[i]===2){
+      col.setXYZ(i,riverC.r,riverC.g,riverC.b);
+    }else if(W.roadCells[i]){
+      C1.setRGB(col.getX(i),col.getY(i),col.getZ(i)).lerp(roadC,0.85);
+      col.setXYZ(i,C1.r,C1.g,C1.b);
+    }
   }
   col.needsUpdate=true;
   // trees seasonal tint
