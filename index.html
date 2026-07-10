@@ -870,7 +870,11 @@ function colorForVertex(i,sp,snowT,seed){
     case B.ROCK:c=C1.setHex(sp.rock);break;
     default:c=C1.setHex(0xe8ecef);
   }
-  c.multiplyScalar(0.88+n*0.24);
+  c.multiplyScalar(0.92+n*0.16);
+  if(bio===B.ROCK||bio===B.SNOW){ // coherent snowcaps: whiten smoothly with height
+    const t=clamp((h-470)/130,0,1);
+    c.lerp(new THREE.Color(0xe9edf2),t*t);
+  }
   if(W.roadCells[i]&&bio!==B.WATER)c.lerp(new THREE.Color(0x8a7448),0.8); // roads read at map altitude
   if(W.drought&&(bio===B.MEADOW||bio===B.FARM))c.lerp(new THREE.Color(0xb3a35c),0.55);
   // winter snow accumulation on flat/high ground
@@ -929,7 +933,7 @@ function buildTerrain(){
   const rg=new THREE.BufferGeometry();
   rg.setAttribute('position',new THREE.Float32BufferAttribute(riv.p,3));
   rg.setAttribute('normal',new THREE.Float32BufferAttribute(riv.n,3));
-  G.rivers=new THREE.Mesh(rg,new THREE.MeshPhongMaterial({color:0x3a7096,transparent:true,opacity:0.88,shininess:110,specular:0x99bbcc,
+  G.rivers=new THREE.Mesh(rg,new THREE.MeshPhongMaterial({color:0x2e6ea0,transparent:true,opacity:0.95,shininess:110,specular:0x99bbcc,
     polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
   scene.add(G.rivers);
   // roads: king's roads (wide) + settlement streets (narrow), one merged mesh
@@ -958,17 +962,30 @@ function updateTerrainColors(si,blend){
   const sp={};for(const k of['mead','farm','forest','pine','rock','marsh']){
     const c0=new THREE.Color(sp0[k]),c1=new THREE.Color(sp1[k]);sp[k]=c0.lerp(c1,blend*blend).getHex();
   }
-  const col=G.terrain.geometry.attributes.color;
-  for(let i=0;i<col.count;i++){
+  const col=G.terrain.geometry.attributes.color,N=col.count;
+  if(!G._cbuf)G._cbuf=new Float32Array(N*3);
+  const buf=G._cbuf;
+  for(let i=0;i<N;i++){
     const c=colorForVertex(i,sp,snowT,SEED);
-    col.setXYZ(i,c.r,c.g,c.b);
+    buf[i*3]=c.r;buf[i*3+1]=c.g;buf[i*3+2]=c.b;
+  }
+  // neighbor blend calms biome banding into painterly gradients
+  for(let cz=0;cz<GRID;cz++)for(let cx=0;cx<GRID;cx++){
+    const i=cIdx(cx,cz);
+    let r=buf[i*3]*0.44,g=buf[i*3+1]*0.44,b=buf[i*3+2]*0.44,ws=0.44;
+    for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){
+      if(!inB(cx+dx,cz+dz))continue;
+      const j=cIdx(cx+dx,cz+dz);
+      r+=buf[j*3]*0.14;g+=buf[j*3+1]*0.14;b+=buf[j*3+2]*0.14;ws+=0.14;
+    }
+    col.setXYZ(i,r/ws,g/ws,b/ws);
   }
   col.needsUpdate=true;
   // trees seasonal tint
   if(G.decid){
-    const dc=new THREE.Color([0x4c7a3c,0x557a36,0xa05e24,0x6e6250][si]);
+    const dc=new THREE.Color([0x40682f,0x4a6c2e,0x96541e,0x5e5344][si]);
     G.decid.material.color.copy(dc);
-    G.pine.material.color.setHex(si===3?0x39543f:0x2e5138);
+    G.pine.material.color.setHex(si===3?0x314a37:0x28472f);
   }
 }
 
@@ -985,11 +1002,11 @@ function buildTrees(){
     const i=cIdx(cx,cz),bio=W.biome[i];
     if(bio!==B.FOREST&&bio!==B.PINE)continue;
     if(W.settlements.some(s=>dist2d(cellX(cx),cellZ(cz),s.pos.x,s.pos.z)<s.radius*0.8))continue;
-    const dens=bio===B.FOREST?2:2;
+    const dens=bio===B.FOREST?3:2;
     for(let t=0;t<dens;t++){
       const x=cellX(cx)+ (nj(cx*3+t*7,cz*3)-0.5)*CELL*1.4, z=cellZ(cz)+(nj(cx*3,cz*3+t*13)-0.5)*CELL*1.4;
       const arr=bio===B.FOREST?spots.dec:spots.pine;
-      if(arr.length<5200)arr.push({x,z,s:0.8+nj(cx+t,cz-t)*0.9});
+      if(arr.length<7000)arr.push({x,z,s:1.0+nj(cx+t,cz-t)*1.0});
     }
   }
   G.decid=new THREE.InstancedMesh(decidG,new THREE.MeshLambertMaterial({color:0x4c7a3c}),Math.max(1,spots.dec.length));
@@ -2641,8 +2658,14 @@ const director={queue:[],shot:null,shotUntil:0,cool:{},idleUntil:0,idleTarget:nu
     if(this.queue.length>12)this.queue.sort((a,b)=>b.ev.pri-a.ev.pri).length=12;
   },
   update(now,dt){
-    if(cam.mode!=='director'&&!document.body.classList.contains('watch'))return;
-    if(now<cam.manualUntil)return;
+    if(cam.mode!=='director'&&!document.body.classList.contains('watch')){
+      if(this.shot){this.shot=null;hideBeat();} // don't leave a stale card when the user takes the wheel
+      return;
+    }
+    if(now<cam.manualUntil){
+      if(this.shot){this.shot=null;hideBeat();}
+      return;
+    }
     // expire stale
     this.queue=this.queue.filter(q=>now-q.born<50&&(!this.shot||q.ev!==this.shot.ev));
     // pick a beat
