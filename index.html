@@ -362,7 +362,36 @@ async function generateWorld(seed,progress){
   if(maxh<400)for(let i=0;i<W.h.length;i++)W.h[i]*=400/maxh;
 
   await progress('Carving the rivers…',0.2);
-  /* --- hydrology: flow accumulation, carve rivers ----------------------- */
+  /* --- hydrology: fill depressions, then flow accumulation, carve rivers --
+     Priority-flood fill guarantees every cell drains monotonically to the
+     map rim or the sea, so rivers always run from the highlands down. */
+  {
+    const visited=new Uint8Array(GRID*GRID);
+    const heap=[];
+    const hpush=(h,i)=>{heap.push([h,i]);let k=heap.length-1;
+      while(k>0){const p=(k-1)>>1;if(heap[p][0]<=heap[k][0])break;const t=heap[p];heap[p]=heap[k];heap[k]=t;k=p;}};
+    const hpop=()=>{const top=heap[0],last=heap.pop();
+      if(heap.length){heap[0]=last;let k=0;
+        for(;;){const l=k*2+1,r=l+1;let m=k;
+          if(l<heap.length&&heap[l][0]<heap[m][0])m=l;
+          if(r<heap.length&&heap[r][0]<heap[m][0])m=r;
+          if(m===k)break;const t=heap[m];heap[m]=heap[k];heap[k]=t;k=m;}}
+      return top;};
+    for(let cx=0;cx<GRID;cx++){for(const cz of[0,GRID-1]){const i=cIdx(cx,cz);if(!visited[i]){visited[i]=1;hpush(W.h[i],i);}}}
+    for(let cz=0;cz<GRID;cz++){for(const cx of[0,GRID-1]){const i=cIdx(cx,cz);if(!visited[i]){visited[i]=1;hpush(W.h[i],i);}}}
+    while(heap.length){
+      const[hh,c]=hpop();
+      const cx=c%GRID,cz=(c/GRID)|0;
+      for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;
+        if(!inB(nx,nz))continue;const ni=cIdx(nx,nz);
+        if(visited[ni])continue;
+        visited[ni]=1;
+        if(W.h[ni]<hh+0.05)W.h[ni]=hh+0.05; // fill pits just enough to drain
+        hpush(W.h[ni],ni);
+      }
+    }
+  }
   const order=[];for(let i=0;i<GRID*GRID;i++)order.push(i);
   order.sort((a,b)=>W.h[b]-W.h[a]);
   const down=new Int32Array(GRID*GRID).fill(-1);
@@ -397,6 +426,7 @@ async function generateWorld(seed,progress){
     if(path.length>4)W.riverPaths.push(path);
   }
   W.coastal=coastal;
+  W.down=down; // drainage graph — reused for river barge routes
 
   await progress('Seeding meadow and forest…',0.35);
   /* --- biomes ------------------------------------------------------------ */
@@ -494,25 +524,43 @@ function buildRoads(){
     return c;
   };
   function astar(s,t){
-    const open=new Map(),g=new Map(),from=new Map();
-    const hx=(i)=>{const ax=i%GRID,az=(i/GRID)|0,bx=t%GRID,bz=(t/GRID)|0;return Math.hypot(ax-bx,az-bz);};
-    open.set(s,hx(s));g.set(s,0);
+    // binary-heap A* — cheap enough to search the whole grid, so mountain
+    // crossings get real switchback roads instead of falling back
+    const g=new Float64Array(GRID*GRID).fill(Infinity);
+    const from=new Int32Array(GRID*GRID).fill(-1);
+    const closed=new Uint8Array(GRID*GRID);
+    const heap=[];
+    const hpush=(f,i)=>{heap.push([f,i]);let k=heap.length-1;
+      while(k>0){const p=(k-1)>>1;if(heap[p][0]<=heap[k][0])break;const t2=heap[p];heap[p]=heap[k];heap[k]=t2;k=p;}};
+    const hpop=()=>{const top=heap[0],last=heap.pop();
+      if(heap.length){heap[0]=last;let k=0;
+        for(;;){const l=k*2+1,r=l+1;let m=k;
+          if(l<heap.length&&heap[l][0]<heap[m][0])m=l;
+          if(r<heap.length&&heap[r][0]<heap[m][0])m=r;
+          if(m===k)break;const t2=heap[m];heap[m]=heap[k];heap[k]=t2;k=m;}}
+      return top;};
+    const tx=t%GRID,tz=(t/GRID)|0;
+    const hx=(i)=>Math.hypot(i%GRID-tx,((i/GRID)|0)-tz);
+    g[s]=0;hpush(hx(s),s);
     let guard=0;
-    while(open.size&&guard++<26000){
-      let cur=-1,cf=1e18;for(const[k,f]of open)if(f<cf){cf=f;cur=k;}
+    while(heap.length&&guard++<200000){
+      const cur=hpop()[1];
+      if(closed[cur])continue;
+      closed[cur]=1;
       if(cur===t)break;
-      open.delete(cur);
-      const cx=cur%GRID,cz=(cur/GRID)|0,gc=g.get(cur);
+      const cx=cur%GRID,cz=(cur/GRID)|0,gc=g[cur];
       for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
         if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;if(!inB(nx,nz))continue;
-        const ni=cIdx(nx,nz),step=cost(cur,ni)*(dx&&dz?1.414:1);
+        const ni=cIdx(nx,nz);
+        if(closed[ni])continue;
+        const step=cost(cur,ni)*(dx&&dz?1.414:1);
         if(step>1e8)continue;
         const ng=gc+step;
-        if(ng<(g.get(ni)??1e18)){g.set(ni,ng);from.set(ni,cur);open.set(ni,ng+hx(ni));}
+        if(ng<g[ni]){g[ni]=ng;from[ni]=cur;hpush(ng+hx(ni),ni);}
       }
     }
-    if(!from.has(t)&&s!==t)return null;
-    const path=[];let c=t;while(c!==undefined&&c!==s){path.push(c);c=from.get(c);}path.push(s);path.reverse();
+    if(from[t]<0&&s!==t)return null;
+    const path=[];let c=t;while(c>=0&&c!==s){path.push(c);c=from[c];}path.push(s);path.reverse();
     return path;
   }
   const connected=[0];
@@ -530,7 +578,17 @@ function buildRoads(){
         else W.roadCells[c]=1; // tint the ground under the king's roads
       }
       W.roads.push({a:i,b:bj,path,len});
-    }else W.roads.push({a:i,b:bj,path:[{x:a.pos.x,z:a.pos.z},{x:b.pos.x,z:b.pos.z}],len:bd});
+    }else{
+      // no path found: lay a terrain-following track so the route is at least visible
+      const path=[];const n=Math.max(2,Math.round(bd/25));
+      for(let k=0;k<=n;k++){
+        const x=lerp(a.pos.x,b.pos.x,k/n),z=lerp(a.pos.z,b.pos.z,k/n);
+        path.push({x,z});
+        const ci2=cIdx(toCell(x),toCell(z));
+        if(!W.water[ci2])W.roadCells[ci2]=1;
+      }
+      W.roads.push({a:i,b:bj,path,len:bd});
+    }
     connected.push(i);
   }
   // settlement-graph routing (BFS), route(a,b) => polyline
@@ -556,6 +614,27 @@ function route(ai,bi){
   let len=0;for(let k=1;k<poly.length;k++)len+=dist2d(poly[k-1].x,poly[k-1].z,poly[k].x,poly[k].z);
   const res={poly,len};W.routes[key]=res;
   return res;
+}
+/* river barge routing: two settlements are river-linked if their drainage
+   traces meet — same river, or tributary joining the main stem */
+function traceDown(ci){
+  const seq=[];let c=ci,g=0;
+  while(c>=0&&g++<3000){seq.push(c);if(W.h[c]<=SEA)break;c=W.down[c];}
+  return seq;
+}
+function riverRoute(ai,bi){
+  const A=W.settlements[ai],Bs=W.settlements[bi];
+  if(A.rivCell==null||Bs.rivCell==null)return null;
+  const sa=traceDown(A.rivCell),sb=traceDown(Bs.rivCell);
+  const setB=new Map(sb.map((c,j)=>[c,j]));
+  let mi=-1,mj=-1;
+  for(let i=0;i<sa.length;i++){if(setB.has(sa[i])){mi=i;mj=setB.get(sa[i]);break;}}
+  if(mi<0)return null;
+  const cells=sa.slice(0,mi+1).concat(sb.slice(0,mj).reverse());
+  if(cells.length<4)return null;
+  const poly=cells.map(c=>({x:cellX(c%GRID),z:cellZ((c/GRID)|0)}));
+  let len=0;for(let k=1;k<poly.length;k++)len+=dist2d(poly[k-1].x,poly[k-1].z,poly[k].x,poly[k].z);
+  return {poly,len};
 }
 
 /* ---------------- settlement layout: streets, lots, buildings ------------ */
@@ -849,6 +928,43 @@ function initGraphics(){
 }
 
 /* ---------------- terrain, water, roads ---------------------------------- */
+function chaikin(pts,passes){ // corner-cutting smoothing
+  for(let k=0;k<passes;k++){
+    const out=[pts[0]];
+    for(let i=0;i<pts.length-1;i++){
+      const a=pts[i],b=pts[i+1];
+      out.push({x:a.x*0.75+b.x*0.25,z:a.z*0.75+b.z*0.25,w:(a.w||8)*0.75+(b.w||8)*0.25});
+      out.push({x:a.x*0.25+b.x*0.75,z:a.z*0.25+b.z*0.75,w:(a.w||8)*0.25+(b.w||8)*0.75});
+    }
+    out.push(pts[pts.length-1]);
+    pts=out;
+  }
+  return pts;
+}
+function ribbon(pts,acc,hw,lift){ // append triangles for a terrain-following strip
+  for(let k=0;k<pts.length-1;k++){
+    const a=pts[k],b=pts[k+1];
+    const dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1;
+    const wA=hw??(Math.max(10,a.w||10)/2),wB=hw??(Math.max(10,b.w||10)/2);
+    const px=-dz/L,pz=dx/L;
+    const ya=hAt(a.x,a.z)+lift,yb=hAt(b.x,b.z)+lift;
+    acc.p.push(a.x+px*wA,ya,a.z+pz*wA, a.x-px*wA,ya,a.z-pz*wA, b.x-px*wB,yb,b.z-pz*wB,
+               a.x+px*wA,ya,a.z+pz*wA, b.x-px*wB,yb,b.z-pz*wB, b.x+px*wB,yb,b.z+pz*wB);
+    for(let i=0;i<6;i++)acc.n.push(0,1,0);
+  }
+}
+function rebuildRoadMesh(){ // king's roads (wide) + settlement streets (narrow), one merged mesh
+  if(G.roads){scene.remove(G.roads);G.roads.geometry.dispose();}
+  const rd={p:[],n:[]};
+  for(const r of W.roads)ribbon(chaikin(r.path,1),rd,5.2,0.9);
+  for(const s of W.settlements)if(s.streets)for(const st of s.streets)ribbon(st,rd,2.6,0.8);
+  const rrg=new THREE.BufferGeometry();
+  rrg.setAttribute('position',new THREE.Float32BufferAttribute(rd.p,3));
+  rrg.setAttribute('normal',new THREE.Float32BufferAttribute(rd.n,3));
+  G.roads=new THREE.Mesh(rrg,G.roadMat||(G.roadMat=new THREE.MeshLambertMaterial({color:0x8f7c55,
+    polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})));
+  scene.add(G.roads);
+}
 function colorForVertex(i,sp,snowT,seed){
   const bio=W.biome[i],h=W.h[i];
   const nn=Math.sin(i*127.1+(seed%97))*43758.5453; const n=nn-Math.floor(nn); // stable patternless jitter
@@ -902,32 +1018,6 @@ function buildTerrain(){
     G.sea=new THREE.Mesh(sg,new THREE.MeshPhongMaterial({color:0x2e6285,transparent:true,opacity:0.92,shininess:90,specular:0x88aabb}));
     G.sea.position.y=SEA+0.5;scene.add(G.sea);
   }
-  // river ribbons — Chaikin-smoothed so the water reads as one stroke
-  function chaikin(pts,passes){
-    for(let k=0;k<passes;k++){
-      const out=[pts[0]];
-      for(let i=0;i<pts.length-1;i++){
-        const a=pts[i],b=pts[i+1];
-        out.push({x:a.x*0.75+b.x*0.25,z:a.z*0.75+b.z*0.25,w:(a.w||8)*0.75+(b.w||8)*0.25});
-        out.push({x:a.x*0.25+b.x*0.75,z:a.z*0.25+b.z*0.75,w:(a.w||8)*0.25+(b.w||8)*0.75});
-      }
-      out.push(pts[pts.length-1]);
-      pts=out;
-    }
-    return pts;
-  }
-  const ribbon=(pts,acc,hw,lift)=>{ // append triangles for a smoothed strip
-    for(let k=0;k<pts.length-1;k++){
-      const a=pts[k],b=pts[k+1];
-      const dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1;
-      const wA=hw??(Math.max(10,a.w||10)/2),wB=hw??(Math.max(10,b.w||10)/2);
-      const px=-dz/L,pz=dx/L;
-      const ya=hAt(a.x,a.z)+lift,yb=hAt(b.x,b.z)+lift;
-      acc.p.push(a.x+px*wA,ya,a.z+pz*wA, a.x-px*wA,ya,a.z-pz*wA, b.x-px*wB,yb,b.z-pz*wB,
-                 a.x+px*wA,ya,a.z+pz*wA, b.x-px*wB,yb,b.z-pz*wB, b.x+px*wB,yb,b.z+pz*wB);
-      for(let i=0;i<6;i++)acc.n.push(0,1,0);
-    }
-  };
   const riv={p:[],n:[]};
   for(const path of W.riverPaths)ribbon(chaikin(path,2),riv,null,1.3);
   const rg=new THREE.BufferGeometry();
@@ -936,16 +1026,7 @@ function buildTerrain(){
   G.rivers=new THREE.Mesh(rg,new THREE.MeshPhongMaterial({color:0x2e6ea0,transparent:true,opacity:0.95,shininess:110,specular:0x99bbcc,
     polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
   scene.add(G.rivers);
-  // roads: king's roads (wide) + settlement streets (narrow), one merged mesh
-  const rd={p:[],n:[]};
-  for(const r of W.roads)ribbon(chaikin(r.path,1),rd,5.2,0.9);
-  for(const s of W.settlements)if(s.streets)for(const st of s.streets)ribbon(st,rd,2.6,0.8);
-  const rrg=new THREE.BufferGeometry();
-  rrg.setAttribute('position',new THREE.Float32BufferAttribute(rd.p,3));
-  rrg.setAttribute('normal',new THREE.Float32BufferAttribute(rd.n,3));
-  G.roads=new THREE.Mesh(rrg,new THREE.MeshLambertMaterial({color:0x8f7c55,
-    polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
-  scene.add(G.roads);
+  rebuildRoadMesh();
   // bridges
   const bg=new THREE.BoxGeometry(1,1,1);
   G.bridges=new THREE.InstancedMesh(bg,new THREE.MeshLambertMaterial({color:0x7d6748}),Math.max(1,W.bridges.length));
@@ -1169,9 +1250,9 @@ function buildAgents(){
       sp.visible=false;scene.add(sp);G.caravanDots.push(sp);
     }
   }
-  // cogs
+  // cogs (sea traders) & river barges share the boat pool
   G.cogs=[];
-  for(let i=0;i<8;i++){
+  for(let i=0;i<14;i++){
     const grp=new THREE.Group();
     const hull=new THREE.Mesh(new THREE.BoxGeometry(9,2.4,3.6),new THREE.MeshLambertMaterial({color:0x6e5233}));hull.position.y=1.4;
     const sail=new THREE.Mesh(new THREE.PlaneGeometry(5,6),new THREE.MeshLambertMaterial({color:0xe4dcc4,side:THREE.DoubleSide}));sail.position.y=6;
@@ -1509,7 +1590,7 @@ function showInspect(pk){
     flyToBtn(fb,'Follow',()=>{cam.follow=a;cam.dist=260;});
   }else if(pk.type==='caravan'){
     const c=pk.c;
-    title.textContent='Caravan';
+    title.textContent=c.sea?'Trading cog':(c.river?'River barge':'Caravan');
     sub.textContent=W.settlements[c.origin].name+' → '+W.settlements[c.dest].name;
     h+=row('Cargo',c.good+' × '+Math.round(c.qty));
     h+=row('Value',Math.round(c.value)+' gold');
@@ -1568,6 +1649,23 @@ function simInit(){
       if(b===B.FARM)farm++;if(b===B.FOREST||b===B.PINE)forest++;if(b===B.ROCK)ore++;
     }
     s.res={farm,forest,ore:Math.min(ore,14),fish:(s.harbor?12:0)+(s.river?5:0)};
+    // nearest river cell, for barge landings
+    s.rivCell=null;
+    if(s.river){
+      let bd=1e9;
+      for(let dz=-6;dz<=6;dz++)for(let dx=-6;dx<=6;dx++){
+        const ci=s.cx+dx,cj=s.cz+dz;
+        if(!inB(ci,cj)||W.water[cIdx(ci,cj)]!==2)continue;
+        const d=dx*dx+dz*dz;if(d<bd){bd=d;s.rivCell=cIdx(ci,cj);}
+      }
+    }
+  }
+  // the river is a road that flows: barge routes between river-linked towns
+  W.riverPairs=[];
+  for(let i=0;i<W.settlements.length;i++)for(let j=i+1;j<W.settlements.length;j++){
+    if(!W.settlements[i].river||!W.settlements[j].river)continue;
+    const r=riverRoute(i,j);
+    if(r&&r.len>400)W.riverPairs.push({a:i,b:j,route:r});
   }
 }
 
@@ -1666,6 +1764,22 @@ function tickEconomy(){
             if(rr)rr.vol=(rr.vol||0)+0.5;
           }
         }
+      }
+    }
+  }
+  // river barges between river-linked settlements (faster and safer than the road)
+  if(W.riverPairs&&W.riverPairs.length&&W.caravans.filter(c=>c.river).length<5&&chance('sim',0.4*MOD.trade)){
+    const pr=pick('sim',W.riverPairs);
+    const downstream=chance('sim',0.5);
+    const oi=downstream?pr.a:pr.b,di=downstream?pr.b:pr.a;
+    const o=W.settlements[oi],d2=W.settlements[di];
+    if(o.infected/Math.max(1,o.pop)<=0.15&&d2.infected/Math.max(1,d2.pop)<=0.15&&!o.siegeBy&&!d2.siegeBy){
+      const g=GOODS.reduce((a,b)=>o.stores[a]>o.stores[b]?a:b);
+      if(o.stores[g]>25){
+        const qty=Math.min(o.stores[g]*0.3,70);o.stores[g]-=qty;
+        const poly=downstream?pr.route.poly:[...pr.route.poly].reverse();
+        W.caravans.push({origin:oi,dest:di,good:g,qty,value:qty*price(d2,g),poly,len:pr.route.len,
+          departDay:day(),arriveDay:day()+pr.route.len/1500,robbed:false,sea:false,river:true,proxy:null});
       }
     }
   }
@@ -2351,7 +2465,7 @@ function tickBandits(dis){
     }
     // ambush caravans passing near (position computed in sim time, not render time)
     for(const c of W.caravans){
-      if(c.sea||c.robbed)continue;
+      if(c.sea||c.river||c.robbed)continue; // barges are beyond the outlaws' reach
       const f=(day()-c.departDay)/Math.max(0.01,c.arriveDay-c.departDay);
       const p=polyPos(c.poly,f);
       if(!p)continue;
@@ -2574,9 +2688,17 @@ function doAct(act,p){
       W.settlements.push(s);
       const si=W.settlements.length-1;W.adj[si]=[];
       let bj=0,bd=1e18;W.settlements.forEach((o,oi)=>{if(oi!==si){const d=dist2d(p.x,p.z,o.pos.x,o.pos.z);if(d<bd){bd=d;bj=oi;}}});
-      const path=[{x:p.x,z:p.z},{x:W.settlements[bj].pos.x,z:W.settlements[bj].pos.z}];
+      const tgt=W.settlements[bj].pos;
+      const path=[];const nseg=Math.max(2,Math.round(bd/25));
+      for(let k=0;k<=nseg;k++){
+        const x=lerp(p.x,tgt.x,k/nseg),z=lerp(p.z,tgt.z,k/nseg);
+        path.push({x,z});
+        const rc=cIdx(toCell(x),toCell(z));
+        if(!W.water[rc])W.roadCells[rc]=1;
+      }
       W.roads.push({a:si,b:bj,path,len:bd});W.routes={};
       W.adj[si].push({to:bj,ri:W.roads.length-1});W.adj[bj].push({to:si,ri:W.roads.length-1});
+      rebuildRoadMesh();lastSeasonKey=''; // show the new track and its ground tint
       for(let i=0;i<10;i++)addBuildingLive(s);
       const sp=makeTextSprite(s.name,1.6);sp.position.set(p.x,s.pos.y+90,p.z);scene.add(sp);G.labels.push(sp);
       const m=new THREE.Mesh(new THREE.SphereGeometry(60,8,6),new THREE.MeshBasicMaterial({visible:false}));
@@ -3126,15 +3248,15 @@ function animateWorld(dt,now){
     const f=(simDay-c.departDay)/Math.max(0.01,c.arriveDay-c.departDay);
     const p=polyPos(c.poly,f);
     if(!p)continue;
-    const y=c.sea?SEA+1:hAt(p.x,p.z)+1.0; // ride on the road surface, not inside it
+    const y=c.sea?SEA+1:(c.river?hAt(p.x,p.z)+1.2:hAt(p.x,p.z)+1.0); // road surface or water line
     c._rpos={x:p.x,y:y+8,z:p.z};
     if(!c.proxy){
       c.proxy=new THREE.Mesh(new THREE.SphereGeometry(16,6,5),new THREE.MeshBasicMaterial({visible:false}));
       c.proxy.userData.pick={type:'caravan',c};scene.add(c.proxy);
     }
     c.proxy.position.set(p.x,y+6,p.z);
-    if(c.sea){
-      if(cogI<G.cogs.length){const g=G.cogs[cogI++];g.visible=true;g.position.set(p.x,y,p.z);g.rotation.y=-(p.dir||0);g.scale.setScalar(Math.min(unitScale,3));}
+    if(c.sea||c.river){
+      if(cogI<G.cogs.length){const g=G.cogs[cogI++];g.visible=true;g.position.set(p.x,y,p.z);g.rotation.y=-(p.dir||0);g.scale.setScalar(Math.min(unitScale,c.river?2:3));}
     }else if(ci<48){
       setInst(G.caravans,ci++,p.x,y,p.z,-(p.dir||0),unitScale,unitScale,unitScale);
     }
